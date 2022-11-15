@@ -1,7 +1,9 @@
 import json
-from transformers import BertTokenizer, BertModel
+from transformers import BertTokenizer, BertModel, logging
 from abc import ABC, abstractmethod
 import re
+import torch
+from tqdm import tqdm
 
 import pdb
 
@@ -15,34 +17,24 @@ def main():
     
     
     text_search = PlaintextSearch(descriptions)
+    neural_search = NeuralSearch(descriptions)
     
     while True:
         query = input('Search: ')
         text_results = text_search.search(query)
-        print_results(text_results)
+        neural_results = neural_search.search(query)
+        print_results(text_results, 'text')
+        print_results(neural_results, 'neural')
     
+
+
     
-    
-    results = text_search.search('precipitation')
-
-
-    # neural_search = NeuralSearch(descriptions)
-    
-    
-    pdb.set_trace()
-
-
-    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    model = BertModel.from_pretrained("bert-base-uncased")
-    text = "Replace me by any text you'd like."
-    encoded_input = tokenizer(text, return_tensors='pt')
-    output = model(**encoded_input)
-    pdb.set_trace()
 
 
 
 
-def print_results(results:list[tuple[str,float]]):
+def print_results(results:list[tuple[str,float]], search_type:str):
+    print(f'--------------------------------- {search_type} results: ---------------------------------')
     if len(results) == 0:
         print('No results found\n')
         return
@@ -104,19 +96,77 @@ class PlaintextSearch(TF_IDF):
         
         # compute tf-idf for the query
         results = []
-        for i, doc_tf_idf in enumerate(self.tf_idf):
+        for doc, doc_tf_idf in zip(self.corpus, self.tf_idf):
             score = 0
             for word in query_words:
                 score += doc_tf_idf.get(word, 0)
             if score > 0:
-                results.append((self.corpus[i], score))
+                results.append((doc, score))
         
         results.sort(key=lambda x: x[1], reverse=True)
 
         return results
 
 
-class NeuralSearch(TF_IDF):...
+class NeuralSearch(TF_IDF):
+    """neural TF-IDF search based on BERT"""
+    def __init__(self, corpus:list[str]):
+
+        # load BERT tokenizer and model from HuggingFace
+        with torch.no_grad():
+            logging.set_verbosity_error()
+            self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+            self.model = BertModel.from_pretrained('bert-base-uncased')
+
+            # move model to GPU
+            self.model = self.model.cuda()
+
+        # set up the corpus and compute tf-idf
+        self.corpus = corpus
+        self._build_tf_idf()
+
+    def _build_tf_idf(self):
+        with torch.no_grad():
+            
+            # convert each document to a BERT token embedding
+            tokenized_corpus = self.tokenizer(self.corpus, return_tensors='pt', padding='max_length', truncation=True)
+
+            # break the data into chunks, and move to GPU
+            chunk_size = 10
+            tokenized_corpus_chunks = []
+            for i in range(0, len(tokenized_corpus['input_ids']), chunk_size):
+                tokenized_corpus_chunks.append({k: v[i:i+chunk_size].cuda() for k, v in tokenized_corpus.items()})
+            
+            # encode each document using BERT
+            encoded_corpus_chunks = []
+            for chunk in tqdm(tokenized_corpus_chunks, desc='neural encoding corpus'):
+                encoded_corpus_chunks.append(self.model(**chunk).last_hidden_state)
+            
+            self.encoded_corpus = torch.cat(encoded_corpus_chunks, dim=0)
+
+
+    def search(self, query:str) -> list[tuple[str, float]]:
+        with torch.no_grad():
+            # tokenize the query, and encode with BERT
+            encoded_query = self.tokenizer(query, return_tensors='pt')
+            encoded_query = {k: v.cuda() for k, v in encoded_query.items()} # move to GPU
+            encoded_query = self.model(**encoded_query).last_hidden_state
+
+            # compute cosine similarity between each vector in the query to each vector in each document
+            results = []
+            for doc, encoded_doc in zip(self.corpus, self.encoded_corpus):
+                scores = torch.cosine_similarity(encoded_query, encoded_doc[:,None], dim=2)
+                score = scores.max(dim=0).values.mean().item()
+                
+                if score > 0:
+                    results.append((doc, score))
+                
+               
+            results.sort(key=lambda x: x[1], reverse=True)
+
+            return results[:10] #DEBUG: only return the top 10 results
+
+
 
 
 if __name__ == '__main__':
