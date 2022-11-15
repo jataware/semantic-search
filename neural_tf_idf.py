@@ -12,10 +12,12 @@ def main():
     with open('indicators.jsonl') as f:
         lines = f.readlines()
         indicators = [json.loads(line) for line in lines]
-    
-    descriptions = [indicator['_source']['description'] for indicator in indicators]
-    
-    
+
+    descriptions = []
+    for indicator in indicators:
+        for out in indicator['_source']['outputs']:
+            descriptions.append(out['description'])
+
     text_search = PlaintextSearch(descriptions)
     neural_search = NeuralSearch(descriptions)#, model='bert-large-uncased')
     
@@ -28,16 +30,8 @@ def main():
     
 
 
-    
-"""
-cherry picked examples:
-- terrorism  (vs conflict)
-"""
-
-
-
-
 def print_results(results:list[tuple[str,float]], search_type:str):
+    results = results[:2]
     print(f'--------------------------------- {search_type} results: ---------------------------------')
     if len(results) == 0:
         print('No results found\n')
