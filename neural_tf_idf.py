@@ -17,7 +17,7 @@ def main():
     
     
     text_search = PlaintextSearch(descriptions)
-    neural_search = NeuralSearch(descriptions)
+    neural_search = NeuralSearch(descriptions)#, model='bert-large-uncased')
     
     while True:
         query = input('Search: ')
@@ -29,6 +29,10 @@ def main():
 
 
     
+"""
+cherry picked examples:
+- terrorism  (vs conflict)
+"""
 
 
 
@@ -110,13 +114,13 @@ class PlaintextSearch(TF_IDF):
 
 class NeuralSearch(TF_IDF):
     """neural TF-IDF search based on BERT"""
-    def __init__(self, corpus:list[str]):
+    def __init__(self, corpus:list[str], model='bert-base-uncased'):
 
         # load BERT tokenizer and model from HuggingFace
         with torch.no_grad():
             logging.set_verbosity_error()
-            self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-            self.model = BertModel.from_pretrained('bert-base-uncased')
+            self.tokenizer = BertTokenizer.from_pretrained(model)
+            self.model = BertModel.from_pretrained(model)
 
             # move model to GPU
             self.model = self.model.cuda()
