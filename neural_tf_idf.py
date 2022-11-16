@@ -67,7 +67,7 @@ class PlaintextSearch(Search):
         return results
 
 
-class NeuralSearch(Search):
+class BertSearch(Search):
     """neural TF-IDF search based on BERT"""
     def __init__(self, corpus:list[str], model='bert-base-uncased'):
 
@@ -85,6 +85,15 @@ class NeuralSearch(Search):
         self._build_tf_idf()
 
     def _build_tf_idf(self):
+        #try to load the encoded corpus from disk
+        try:
+            self.encoded_corpus = torch.load('bert_encoded_corpus.pt')
+            print('Loaded bert encoded corpus from disk')
+            return
+        except FileNotFoundError:
+            pass
+
+        print('encoding corpus with BERT')
         with torch.no_grad():
             
             # convert each document to a BERT token embedding
@@ -102,6 +111,9 @@ class NeuralSearch(Search):
                 encoded_corpus_chunks.append(self.model(**chunk).last_hidden_state)
             
             self.encoded_corpus = torch.cat(encoded_corpus_chunks, dim=0)
+
+            #save the corpus to disk
+            torch.save(self.encoded_corpus, 'bert_encoded_corpus.pt')
 
 
     def search(self, query:str, n:int=None) -> list[tuple[str, float]]:

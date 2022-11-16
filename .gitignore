@@ -1,0 +1,6 @@
+__pycache__
+
+data
+
+# too big
+bert_encoded_corpus.pt

@@ -24,7 +24,8 @@ class BabbageSearch(Search):
     def _build_embeddings(self):
         #check if a saved version of the embeddings exists
         if os.path.exists("embeddings.npy"):
-            print("Loading embeddings for babbage search from file")
+            print('Loaded babbage encoded corpus from disk')
+            
             return np.load("embeddings.npy")
         
         print("Building embeddings for babbage search")

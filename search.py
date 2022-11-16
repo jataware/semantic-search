@@ -1,5 +1,5 @@
 import json
-from neural_tf_idf import NeuralSearch, PlaintextSearch
+from neural_tf_idf import BertSearch, PlaintextSearch
 from babbage_search import BabbageSearch
 
 def main():
@@ -8,20 +8,26 @@ def main():
     with open('descriptions.json') as f:
         descriptions = json.load(f)
 
+    text_search, bert_search, babbage_search = None, None, None
+
     text_search = PlaintextSearch(descriptions)
-    # neural_search = NeuralSearch(descriptions)
+    bert_search = BertSearch(descriptions)
     babbage_search = BabbageSearch(descriptions)
     
     while True:
         query = input('Search: ')
-        text_results = text_search.search(query, n=3)
-        print_results(text_results, 'text')
         
-        # neural_results = neural_search.search(query, n=3)
-        # print_results(neural_results, 'neural')
+        if text_search is not None:
+            text_results = text_search.search(query, n=3)
+            print_results(text_results, 'text')
         
-        babbage_results = babbage_search.search(query, n=3)
-        print_results(babbage_results, 'babbage')
+        if bert_search is not None:
+            bert_results = bert_search.search(query, n=3)
+            print_results(bert_results, 'BERT')
+        
+        if babbage_search is not None:
+            babbage_results = babbage_search.search(query, n=3)
+            print_results(babbage_results, 'babbage')
     
 
 
