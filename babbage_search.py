@@ -4,7 +4,7 @@ import pandas as pd
 import openai
 from openai.embeddings_utils import get_embedding, cosine_similarity
 from transformers import GPT2TokenizerFast
-from search_types import Search
+from search import Search
 
 
 import pdb
@@ -38,7 +38,7 @@ class BabbageSearch(Search):
 
     def search(self, query: str, n: int = None) -> list[tuple[str, float]]:
         encoded_query = get_embedding(query, engine='text-search-babbage-doc-001')
-        encoded_query = np.array(encoded_query)#.reshape(1, -1)
+        encoded_query = np.array(encoded_query)
         
 
         results = []

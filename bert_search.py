@@ -2,7 +2,7 @@ from transformers import BertTokenizer, BertModel, logging
 import torch
 from tqdm import tqdm
 
-from search_types import Search
+from search import Search
 
 
 class BertSearch(Search):

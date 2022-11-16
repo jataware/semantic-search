@@ -1,5 +1,5 @@
 import re
-from search_types import Search
+from search import Search
 
 
 class PlaintextSearch(Search):
