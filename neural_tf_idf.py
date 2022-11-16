@@ -1,50 +1,13 @@
-import json
 from transformers import BertTokenizer, BertModel, logging
-from abc import ABC, abstractmethod
 import re
 import torch
 from tqdm import tqdm
-
-import pdb
-
-def main():
-
-    #read descriptions from json array
-    with open('descriptions.json') as f:
-        descriptions = json.load(f)
-
-    text_search = PlaintextSearch(descriptions)
-    neural_search = NeuralSearch(descriptions)#, model='bert-large-uncased')
-    
-    while True:
-        query = input('Search: ')
-        text_results = text_search.search(query)
-        neural_results = neural_search.search(query)
-        print_results(text_results, 'text')
-        print_results(neural_results, 'neural')
-    
+from search_types import Search
 
 
-def print_results(results:list[tuple[str,float]], search_type:str):
-    results = results[:2] #DEBUG only show top 2 results
-    print(f'--------------------------------- {search_type} results: ---------------------------------')
-    if len(results) == 0:
-        print('No results found\n')
-        return
-    
-    for doc, score in results:
-        print(f'>>>>>>>>>>>>>>>>>>>>>>>>>>>>\nscore: {score}\ndoc: {doc}\n<<<<<<<<<<<<<<<<<<<<<<<<<\n\n')
 
 
-class TF_IDF(ABC):
-    @abstractmethod
-    def __init__(self, raw_corpus:list[str]): ...
-
-    @abstractmethod
-    def search(self, query:str) -> list[tuple[str, float]]: ...
-
-
-class PlaintextSearch(TF_IDF):
+class PlaintextSearch(Search):
     """simple text based implementation of TF-IDF"""
         
     def __init__(self, corpus:list[str]):
@@ -83,7 +46,7 @@ class PlaintextSearch(TF_IDF):
             self.tf_idf.append(doc_tf_idf)
 
 
-    def search(self, query:str) -> list[tuple[str, float]]:
+    def search(self, query:str, n:int=None) -> list[tuple[str, float]]:
         # extract words from the query
         query_words = self._extract_words(query)
         
@@ -98,10 +61,13 @@ class PlaintextSearch(TF_IDF):
         
         results.sort(key=lambda x: x[1], reverse=True)
 
+        if n is not None:
+            results = results[:n]
+
         return results
 
 
-class NeuralSearch(TF_IDF):
+class NeuralSearch(Search):
     """neural TF-IDF search based on BERT"""
     def __init__(self, corpus:list[str], model='bert-base-uncased'):
 
@@ -132,13 +98,13 @@ class NeuralSearch(TF_IDF):
             
             # encode each document using BERT
             encoded_corpus_chunks = []
-            for chunk in tqdm(tokenized_corpus_chunks, desc='neural encoding corpus'):
+            for chunk in tqdm(tokenized_corpus_chunks, desc='encoding corpus with BERT'):
                 encoded_corpus_chunks.append(self.model(**chunk).last_hidden_state)
             
             self.encoded_corpus = torch.cat(encoded_corpus_chunks, dim=0)
 
 
-    def search(self, query:str) -> list[tuple[str, float]]:
+    def search(self, query:str, n:int=None) -> list[tuple[str, float]]:
         with torch.no_grad():
             # tokenize the query, and encode with BERT
             encoded_query = self.tokenizer(query, return_tensors='pt')
@@ -157,10 +123,8 @@ class NeuralSearch(TF_IDF):
                
             results.sort(key=lambda x: x[1], reverse=True)
 
-            return results[:10] #DEBUG: only return the top 10 results
+            if n is not None:
+                results = results[:n]
 
+            return results
 
-
-
-if __name__ == '__main__':
-    main()
