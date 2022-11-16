@@ -26,7 +26,7 @@ def main():
 
 
 def print_results(results:list[tuple[str,float]], search_type:str):
-    results = results[:2]
+    results = results[:2] #DEBUG only show top 2 results
     print(f'--------------------------------- {search_type} results: ---------------------------------')
     if len(results) == 0:
         print('No results found\n')
