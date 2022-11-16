@@ -9,14 +9,9 @@ import pdb
 
 def main():
 
-    with open('indicators.jsonl') as f:
-        lines = f.readlines()
-        indicators = [json.loads(line) for line in lines]
-
-    descriptions = []
-    for indicator in indicators:
-        for out in indicator['_source']['outputs']:
-            descriptions.append(out['description'])
+    #read descriptions from json array
+    with open('descriptions.json') as f:
+        descriptions = json.load(f)
 
     text_search = PlaintextSearch(descriptions)
     neural_search = NeuralSearch(descriptions)#, model='bert-large-uncased')
@@ -130,7 +125,7 @@ class NeuralSearch(TF_IDF):
             tokenized_corpus = self.tokenizer(self.corpus, return_tensors='pt', padding='max_length', truncation=True)
 
             # break the data into chunks, and move to GPU
-            chunk_size = 10
+            chunk_size = 20
             tokenized_corpus_chunks = []
             for i in range(0, len(tokenized_corpus['input_ids']), chunk_size):
                 tokenized_corpus_chunks.append({k: v[i:i+chunk_size].cuda() for k, v in tokenized_corpus.items()})
