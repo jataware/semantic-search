@@ -69,7 +69,7 @@ class SearchShell(Cmd):
             return
         
         for doc, score in results:
-            print(f'>>>>>>>>>>>>>>>>>>>>>>>>>>>>\nscore: {score}\ndoc: {doc}\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n\n')
+            print(f'>>>>>>>>>>>>>>>>>>>>>>>>>>>>\nscore: {score}\n{doc}\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n\n')
 
   
 
