@@ -1,6 +1,5 @@
 __pycache__
 
-old_data
 
 # too big
 bert_encoded_corpus.pt
