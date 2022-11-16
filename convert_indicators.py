@@ -2,7 +2,7 @@ import json
 
 def main():
 
-    with open('indicators.jsonl') as f:
+    with open('data/indicators.jsonl') as f:
         lines = f.readlines()
         indicators = [json.loads(line) for line in lines]
 
@@ -19,7 +19,7 @@ unit description: {out['unit_description']};"""
             descriptions.append(description)
 
     #save the descriptions to a file
-    with open('descriptions.json', 'w') as f:
+    with open('data/descriptions.json', 'w') as f:
         json.dump(descriptions, f)
 
 

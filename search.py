@@ -1,15 +1,18 @@
 import json
-from neural_tf_idf import BertSearch, PlaintextSearch
+from tf_idf_search import PlaintextSearch
+from bert_search import BertSearch
 from babbage_search import BabbageSearch
 
 def main():
 
     #read descriptions from json array
-    with open('descriptions.json') as f:
+    with open('data/descriptions.json') as f:
         descriptions = json.load(f)
 
+    # initialize search objects to None (i.e. don't use them)
     text_search, bert_search, babbage_search = None, None, None
 
+    # COMMENT out search here to skip it during loop
     text_search = PlaintextSearch(descriptions)
     bert_search = BertSearch(descriptions)
     babbage_search = BabbageSearch(descriptions)
@@ -39,7 +42,7 @@ def print_results(results:list[tuple[str,float]], search_type:str):
         return
     
     for doc, score in results:
-        print(f'>>>>>>>>>>>>>>>>>>>>>>>>>>>>\nscore: {score}\ndoc: {doc}\n<<<<<<<<<<<<<<<<<<<<<<<<<\n\n')
+        print(f'>>>>>>>>>>>>>>>>>>>>>>>>>>>>\nscore: {score}\ndoc: {doc}\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n\n')
 
 
 
