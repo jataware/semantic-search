@@ -59,20 +59,31 @@ class BertSearch(Search):
             # tokenize the query, and encode with BERT
             encoded_query = self.tokenizer(query, return_tensors='pt')
             encoded_query = {k: v.cuda() for k, v in encoded_query.items()} # move to GPU
-            encoded_query = self.model(**encoded_query).last_hidden_state
+            encoded_query = self.model(**encoded_query).last_hidden_state[0]
 
-            # compute cosine similarity between each vector in the query to each vector in each document
-            results = []
-            for doc, encoded_doc in zip(self.corpus, self.encoded_corpus):
-                scores = torch.cosine_similarity(encoded_query, encoded_doc[:,None], dim=2)
-                score = scores.max(dim=0).values.mean().item()
-                
-                if score > 0:
-                    results.append((doc, score))
-                
-               
-            results.sort(key=lambda x: x[1], reverse=True)
-
+            # # doing tf-idf all at once takes up way too much memory, lol
+            # scores = torch.cosine_similarity(encoded_query[None,:,None], self.encoded_corpus[:,None], dim=3)
+            # tf = torch.sum(scores, dim=2)
+            # idf = torch.max(scores, dim=2).values.sum(dim=0)
+            
+            #chunked version
+            num_chunks = 10
+            tf = []
+            idf = torch.zeros(encoded_query.shape[0], device=encoded_query.device)
+            for corpus_chunk in self.encoded_corpus.chunk(num_chunks):
+                scores = torch.cosine_similarity(encoded_query[None,:,None], corpus_chunk[:,None], dim=3)
+                idf += scores.max(dim=2).values.sum(dim=0)
+                tf.append(scores.sum(dim=2))
+            
+            #combine the chunks, and compute the tf-idf scores
+            tf = torch.cat(tf, dim=0)
+            idf = len(self.corpus) / idf
+            tf_idf = (tf * idf[None,:].log2()).sum(dim=1)
+            
+            # collect the documents, sorted by score
+            results = [(self.corpus[i], tf_idf[i].item()) for i in torch.argsort(tf_idf, descending=True)]
+            
+            # filter for the top n results
             if n is not None:
                 results = results[:n]
 
