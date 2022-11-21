@@ -92,10 +92,10 @@ if __name__ == '__main__':
     #simple arg parser for n=3, text=True, bert=True, babbage=True
     parser = ArgumentParser()
     parser.add_argument('-n', type=int, default=3)
-    parser.add_argument('-text', default=False, action='store_true')
-    parser.add_argument('-bert', default=False, action='store_true')
-    parser.add_argument('-babbage', default=False, action='store_true')
-    parser.add_argument('-sklearn', default=False, action='store_true')
+    parser.add_argument('-text', default=False, action='store_true', help='enable text (tf-idf) search')
+    parser.add_argument('-bert', default=False, action='store_true', help='enable bert search')
+    parser.add_argument('-babbage', default=False, action='store_true', help='enable babbage search')
+    parser.add_argument('-sklearn', default=False, action='store_true', help='enable sklearn (tf-idf) search')
     args = parser.parse_args()
 
     n = args.n
