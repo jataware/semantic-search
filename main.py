@@ -1,6 +1,6 @@
 import json
 from cmd import Cmd
-from tf_idf_search import PlaintextSearch
+from tf_idf_search import PlaintextSearch, SklearnSearch
 from bert_search import BertSearch
 from babbage_search import BabbageSearch
 from argparse import ArgumentParser
@@ -10,7 +10,7 @@ class SearchShell(Cmd):
     prompt = 'Search: '
     file = None
 
-    def __init__(self, *, n=3, text=True, bert=True, babbage=True):
+    def __init__(self, *, n=3, text=True, bert=True, babbage=True, sklearn=True):
 
         super(SearchShell, self).__init__()
 
@@ -21,6 +21,7 @@ class SearchShell(Cmd):
         self.text_search = PlaintextSearch(self.descriptions) if text else None
         self.bert_search = BertSearch(self.descriptions) if bert else None
         self.babbage_search = BabbageSearch(self.descriptions) if babbage else None
+        self.sklearn_search = SklearnSearch(self.descriptions) if sklearn else None
         
         self.n = n
 
@@ -46,6 +47,13 @@ class SearchShell(Cmd):
         babbage_results = self.babbage_search.search(arg, n=self.n)
         self.print_results(babbage_results, 'babbage')
 
+    def do_sklearn(self, arg):
+        if self.sklearn_search is None:
+            print('sklearn search not enabled')
+            return
+        sklearn_results = self.sklearn_search.search(arg, n=self.n)
+        self.print_results(sklearn_results, 'sklearn')
+
 
     def default(self, arg):
         """Run search on all search engines"""
@@ -60,6 +68,10 @@ class SearchShell(Cmd):
         if self.babbage_search is not None:
             babbage_results = self.babbage_search.search(arg, n=self.n)
             self.print_results(babbage_results, 'babbage')
+
+        if self.sklearn_search is not None:
+            sklearn_results = self.sklearn_search.search(arg, n=self.n)
+            self.print_results(sklearn_results, 'sklearn')
 
 
     def print_results(self, results:list[tuple[str,float]], search_type:str):
@@ -83,16 +95,18 @@ if __name__ == '__main__':
     parser.add_argument('-text', default=False, action='store_true')
     parser.add_argument('-bert', default=False, action='store_true')
     parser.add_argument('-babbage', default=False, action='store_true')
+    parser.add_argument('-sklearn', default=False, action='store_true')
     args = parser.parse_args()
 
     n = args.n
     text = args.text
     bert = args.bert
     babbage = args.babbage
+    sklearn = args.sklearn
 
     #if no engines are specified, default to all
-    if not text and not bert and not babbage:
-        text, bert, babbage = True, True, True
+    if not text and not bert and not babbage and not sklearn:
+        text, bert, babbage, sklearn = True, True, True, True
 
 
-    SearchShell(n=n, text=text, bert=bert, babbage=babbage).cmdloop()
+    SearchShell(n=n, text=text, bert=bert, babbage=babbage, sklearn=sklearn).cmdloop()

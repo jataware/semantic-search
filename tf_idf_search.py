@@ -1,5 +1,9 @@
 import re
 from search import Search
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+import pdb
 
 
 class PlaintextSearch(Search):
@@ -61,3 +65,25 @@ class PlaintextSearch(Search):
 
         return results
 
+
+
+
+
+class SklearnSearch(Search):
+    """sklearn based implementation of TF-IDF"""
+    def __init__(self, corpus:list[str]):
+        self.corpus = corpus
+        self.vectorizer = TfidfVectorizer()
+        self.tf_idf = self.vectorizer.fit_transform(self.corpus)
+
+
+    def search(self, query:str, n:int=None) -> list[tuple[str, float]]:
+        query_vec = self.vectorizer.transform([query])
+        scores = cosine_similarity(query_vec, self.tf_idf)[0]
+        results = [(doc, score) for doc, score in zip(self.corpus, scores) if score > 0]
+        results.sort(key=lambda x: x[1], reverse=True)
+
+        if n is not None:
+            results = results[:n]
+
+        return results
