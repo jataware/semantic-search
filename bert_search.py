@@ -1,9 +1,9 @@
+from math import prod
+from search import Search
 from transformers import BertTokenizer, BertModel, logging
 import torch
 from tqdm import tqdm
-from math import prod
 
-from search import Search
 
 class BertSearch(Search):
     """neural TF-IDF search based on BERT"""

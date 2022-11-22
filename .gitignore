@@ -7,3 +7,6 @@ bert_encoded_corpus.pt
 
 #output files from search
 *.txt
+
+#results files from search
+matches.*

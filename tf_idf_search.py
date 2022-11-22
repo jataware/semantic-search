@@ -3,8 +3,6 @@ from search import Search
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-import pdb
-
 
 class PlaintextSearch(Search):
     """simple text based implementation of TF-IDF"""
