@@ -1,13 +1,13 @@
 from transformers import BertTokenizer, BertModel, logging
 import torch
 from tqdm import tqdm
+from math import prod
 
 from search import Search
 
-
 class BertSearch(Search):
     """neural TF-IDF search based on BERT"""
-    def __init__(self, corpus:list[str], model='bert-base-uncased'):
+    def __init__(self, corpus:list[str], model='bert-base-uncased', chunk_size=100):
 
         # load BERT tokenizer and model from HuggingFace
         with torch.no_grad():
@@ -21,6 +21,8 @@ class BertSearch(Search):
         # set up the corpus and compute tf-idf
         self.corpus = corpus
         self._build_tf_idf()
+
+        self.chunk_size = chunk_size
 
     def _build_tf_idf(self, save_path='data/bert_encoded_corpus.pt'):
         #try to load the encoded corpus from disk
@@ -67,10 +69,14 @@ class BertSearch(Search):
             # idf = torch.max(scores, dim=2).values.sum(dim=0)
             
             #chunked version
-            num_chunks = 10
             tf = []
             idf = torch.zeros(encoded_query.shape[0], device=encoded_query.device)
-            for corpus_chunk in self.encoded_corpus.chunk(num_chunks):
+            
+            #chunk size scales based on the number of tokens in the query
+            total_size = prod(self.encoded_corpus.shape) * encoded_query.shape[0]
+            chunk_size = max(self.chunk_size * 2**32 // total_size, 1)
+            
+            for corpus_chunk in self.encoded_corpus.split(chunk_size):
                 scores = torch.cosine_similarity(encoded_query[None,:,None], corpus_chunk[:,None], dim=3)
                 idf += scores.max(dim=2).values.sum(dim=0)
                 tf.append(scores.sum(dim=2))
@@ -82,6 +88,9 @@ class BertSearch(Search):
             
             # collect the documents, sorted by score
             results = [(self.corpus[i], tf_idf[i].item()) for i in torch.argsort(tf_idf, descending=True)]
+
+            #clean up memory
+            del encoded_query, tf, idf, tf_idf
             
             # filter for the top n results
             if n is not None:

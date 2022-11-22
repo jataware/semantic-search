@@ -3,3 +3,7 @@ __pycache__
 
 # too big
 bert_encoded_corpus.pt
+
+
+#output files from search
+*.txt
