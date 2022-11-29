@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 class BertSearch(Search):
     """neural TF-IDF search based on BERT"""
-    def __init__(self, corpus:list[str], model='bert-base-uncased', chunk_size=100):
+    def __init__(self, corpus:list[str], model='bert-base-uncased', chunk_size=100, save_path='data/bert_encoded_corpus.pt'):
 
         # load BERT tokenizer and model from HuggingFace
         with torch.no_grad():
@@ -20,14 +20,15 @@ class BertSearch(Search):
 
         # set up the corpus and compute tf-idf
         self.corpus = corpus
+        self.save_path = save_path
         self._build_tf_idf()
 
         self.chunk_size = chunk_size
 
-    def _build_tf_idf(self, save_path='data/bert_encoded_corpus.pt'):
+    def _build_tf_idf(self):
         #try to load the encoded corpus from disk
         try:
-            self.encoded_corpus = torch.load(save_path)
+            self.encoded_corpus = torch.load(self.save_path)
             print('Loaded bert encoded corpus from disk')
             return
         except FileNotFoundError:
@@ -53,7 +54,7 @@ class BertSearch(Search):
             self.encoded_corpus = torch.cat(encoded_corpus_chunks, dim=0)
 
             #save the corpus to disk
-            torch.save(self.encoded_corpus, save_path)
+            torch.save(self.encoded_corpus, self.save_path)
 
 
     def search(self, query:str, n:int=None) -> list[tuple[str, float]]:
