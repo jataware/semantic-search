@@ -6,6 +6,7 @@ from bert_search import BertSearch
 from tqdm import tqdm
 from collections import defaultdict
 import pandas as pd
+from corpora import Corpus
 import pickle
 
 import pdb
@@ -45,7 +46,7 @@ unit description: {out['unit_description']};"""
             text_to_display_name[description] = out['display_name']
             text_to_description[description] = out['description']
             text_to_indicator[description] = indicator['_source']['name']
-
+    corpus = Corpus(corpus)
 
     with open('data/indicators_with_uaz_matches.jsonl', 'r') as f:
         lines = f.readlines()

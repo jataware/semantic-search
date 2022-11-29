@@ -1,5 +1,7 @@
 from math import prod
 from search import Search
+from corpora import Corpus
+from typing import Union
 from transformers import BertTokenizer, BertModel, logging
 import torch
 from tqdm import tqdm
@@ -7,7 +9,7 @@ from tqdm import tqdm
 
 class BertSearch(Search):
     """neural TF-IDF search based on BERT"""
-    def __init__(self, corpus:list[str], model='bert-base-uncased', chunk_size=100, save_path='weights/bert_encoded_corpus.pt'):
+    def __init__(self, corpus:Corpus, model='bert-base-uncased', chunk_size=100, save_path='weights/bert_encoded_corpus.pt'):
 
         # load BERT tokenizer and model from HuggingFace
         with torch.no_grad():
@@ -19,7 +21,9 @@ class BertSearch(Search):
             self.model = self.model.cuda()
 
         # set up the corpus and compute tf-idf
-        self.corpus = corpus
+        keyed_corpus = corpus.get_keyed_corpus()
+        self.keys = list(keyed_corpus.keys())
+        self.corpus = list(keyed_corpus.values())
         self.save_path = save_path
         self._build_tf_idf()
 
@@ -57,7 +61,7 @@ class BertSearch(Search):
             torch.save(self.encoded_corpus, self.save_path)
 
 
-    def search(self, query:str, n:int=None) -> list[tuple[str, float]]:
+    def search(self, query:str, n:Union[int,None]=None) -> list[tuple[str, float]]:
         with torch.no_grad():
             # tokenize the query, and encode with BERT
             encoded_query = self.tokenizer(query, return_tensors='pt')
@@ -84,11 +88,11 @@ class BertSearch(Search):
             
             #combine the chunks, and compute the tf-idf scores
             tf = torch.cat(tf, dim=0)
-            idf = len(self.corpus) / idf
+            idf = len(self.keys) / idf
             tf_idf = (tf * idf[None,:].log2()).sum(dim=1)
             
             # collect the documents, sorted by score
-            results = [(self.corpus[i], tf_idf[i].item()) for i in torch.argsort(tf_idf, descending=True)]
+            results = [(self.keys[i], tf_idf[i].item()) for i in torch.argsort(tf_idf, descending=True)]
 
             #clean up memory
             del encoded_query, tf, idf, tf_idf

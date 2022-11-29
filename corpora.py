@@ -3,36 +3,25 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import json
-from typing import Union, Hashable
+from typing import Union, Any, TypeVar
 
 import pdb
 
-@dataclass
+#TODO: figure out how to get mypy to allow int/string to work with Hashable: https://github.com/python/mypy/issues/2412
+# i.e. we want to be able to say dict[Hashable, string], where Hashable could be an int, string, etc.
+
+Key = Union[int, str]
+
 class Corpus:
-    docs: Union[list[str], dict[Hashable, str]]
-    
-    def get_keyed_corpus(self):
-        if isinstance(self.docs, dict):
-            return self.docs
-        else:
-            return {i: doc for i, doc in enumerate(self.docs)}
+    def __init__(self, docs:Union[list[str], dict[Key, str]]):
+        if isinstance(docs, list):
+            docs = {i: doc for i, doc in enumerate(docs)}
 
-    def get_unkeyed_corpus(self):
-        if isinstance(self.docs, list):
-            return self.docs
-        else:
-            return list(self.docs.values())
+        self.keyed_corpus: dict[Key, str] = docs
+        assert all(isinstance(doc, str) for doc in self.keyed_corpus.values()), 'corpus may only contain strings'
 
-    def __post_init__(self):
-        """some validation on the input data to ensure it's in the right format"""
-        assert isinstance(self.docs, list) or isinstance(self.docs, dict), 'docs must be a list or a dict'
-        if isinstance(self.docs, dict):
-            assert all(isinstance(key, Hashable) for key in self.docs.keys()), 'keys must be hashable'
-            assert all(isinstance(doc, str) for doc in self.docs.values()), 'docs must be strings'
-        else:
-            assert all(isinstance(doc, str) for doc in self.docs), 'docs must be strings'
-        
-
+    def get_keyed_corpus(self) -> dict[Key, str]:
+        return self.keyed_corpus
 
 
 #TODO: instead of any, tuple version should take a key type (i.e. hashable)
@@ -68,5 +57,26 @@ class ResearchPapers(CorpusLoader):
         
 
 
+class Indicators(CorpusLoader):
+    @staticmethod
+    def get_corpus() -> Corpus:
+        
+        with open('data/indicators.jsonl') as f:
+            lines = f.readlines()
+            indicators = [json.loads(line) for line in lines]
 
+        descriptions = []
+        for indicator in indicators:
+            for out in indicator['_source']['outputs']:
+                #display name, description, unit, unit description
+                description = \
+f"""name: {out['name']};
+display name: {out['display_name']};
+description: {out['description']};
+unit: {out['unit']};
+unit description: {out['unit_description']};"""
+                descriptions.append(description)
 
+        docs = {i: doc for i, doc in enumerate(descriptions)}
+
+        return Corpus(docs)
