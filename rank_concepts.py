@@ -144,7 +144,7 @@ def main():
             rows.append(['UAZ', node.name, node_to_query_string(node), name, text_to_indicator[text], text_to_display_name[text], text_to_description[text], score])
 
     df = pd.DataFrame(rows, columns=['matcher', 'query node', 'query string', 'dataset', 'indicator', 'display name', 'description', 'score'])
-    df.to_csv('data/ranked_concepts.csv', index=False)
+    df.to_csv('output/ranked_concepts.csv', index=False)
     
 
 

@@ -15,6 +15,7 @@ class SearchShell(Cmd):
         super(SearchShell, self).__init__()
 
         #read descriptions from json array
+        #TODO: this should pull from a Corpus for the descriptions, instead of some floating json file
         with open('data/descriptions.json') as f:
             self.descriptions = json.load(f)
 

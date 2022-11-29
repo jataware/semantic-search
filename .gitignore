@@ -10,3 +10,9 @@ bert_encoded_corpus.pt
 
 #results files from search
 matches.*
+
+#output results
+output/*
+
+#model weights
+weights/*

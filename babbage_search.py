@@ -18,7 +18,7 @@ class BabbageSearch(Search):
         self.tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
         self.embeddings = self._build_embeddings()
 
-    def _build_embeddings(self, save_path='data/babbage_encoded_corpus.npy'):
+    def _build_embeddings(self, save_path='weights/babbage_encoded_corpus.npy'):
         #check if a saved version of the embeddings exists
         try:
             embeddings = np.load(save_path)

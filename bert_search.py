@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 class BertSearch(Search):
     """neural TF-IDF search based on BERT"""
-    def __init__(self, corpus:list[str], model='bert-base-uncased', chunk_size=100, save_path='data/bert_encoded_corpus.pt'):
+    def __init__(self, corpus:list[str], model='bert-base-uncased', chunk_size=100, save_path='weights/bert_encoded_corpus.pt'):
 
         # load BERT tokenizer and model from HuggingFace
         with torch.no_grad():

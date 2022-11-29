@@ -1,5 +1,7 @@
 import json
 
+#TODO: convert this to a Corpus
+
 def main():
 
     with open('data/indicators.jsonl') as f:
@@ -19,7 +21,7 @@ unit description: {out['unit_description']};"""
             descriptions.append(description)
 
     #save the descriptions to a file
-    with open('data/descriptions.json', 'w') as f:
+    with open('data/indicator_corpus.json', 'w') as f:
         json.dump(descriptions, f)
 
 
