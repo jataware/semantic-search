@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import json
-from typing import Union, Any, Hashable
+from typing import Union, Hashable
 
 import pdb
 
@@ -12,18 +12,27 @@ class Corpus:
     docs: Union[list[str], dict[Hashable, str]]
     
     def get_keyed_corpus(self):
-        if all(isinstance(doc, tuple) for doc in self.docs):
+        if isinstance(self.docs, dict):
             return self.docs
-        elif all(isinstance(doc, str) for doc in self.docs):
-            return [(i, doc) for i, doc in enumerate(self.docs)]
         else:
-            raise TypeError('docs must be a list of strings or list of tuples') #TODO: make this check run at init
+            return {i: doc for i, doc in enumerate(self.docs)}
+
+    def get_unkeyed_corpus(self):
+        if isinstance(self.docs, list):
+            return self.docs
+        else:
+            return list(self.docs.values())
 
     def __post_init__(self):
-        assert isinstance(self.docs, list), 'docs must be a list'
+        """some validation on the input data to ensure it's in the right format"""
+        assert isinstance(self.docs, list) or isinstance(self.docs, dict), 'docs must be a list or a dict'
+        if isinstance(self.docs, dict):
+            assert all(isinstance(key, Hashable) for key in self.docs.keys()), 'keys must be hashable'
+            assert all(isinstance(doc, str) for doc in self.docs.values()), 'docs must be strings'
+        else:
+            assert all(isinstance(doc, str) for doc in self.docs), 'docs must be strings'
         
-        #check that all the docs are strings or tuples
-        pdb.set_trace()
+
 
 
 #TODO: instead of any, tuple version should take a key type (i.e. hashable)
@@ -38,14 +47,14 @@ class ResearchPapers(CorpusLoader):
     @staticmethod
     def get_corpus() -> Corpus:
         
-        docs = []
-        with open('data/sample_docs.jsonl') as f:
+        docs = {}
+        with open('data/dart_cdr.json_mar_2022') as f:
             lines = f.readlines()
             for i, line in enumerate(lines):
                 doc = json.loads(line)['extracted_text']
                 chunks = ResearchPapers.chunk_doc(doc)
                 for j, chunk in enumerate(chunks):
-                    docs.append((f'{i}_{j}', chunk))
+                    docs[f'{i}_{j}'] = chunk
         
         return Corpus(docs)
     
