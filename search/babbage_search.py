@@ -4,8 +4,8 @@ import pandas as pd
 import openai
 from openai.embeddings_utils import get_embedding, cosine_similarity
 from transformers import GPT2TokenizerFast
-from corpora import Corpus, T, Generic
-from search import Search
+from .corpora import Corpus, T, Generic
+from .search import Search
 
 
 import pdb

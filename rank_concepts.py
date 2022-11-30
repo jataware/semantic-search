@@ -1,13 +1,12 @@
 import json
 import yaml
 from dataclasses import dataclass
-from tf_idf_search import PlaintextSearch, SklearnSearch
-from bert_search import BertSearch
+from search.tf_idf_search import PlaintextSearch, SklearnSearch
+from search.bert_search import BertSearch
+from search.corpora import Corpus
 from tqdm import tqdm
 from collections import defaultdict
 import pandas as pd
-from corpora import Corpus
-import pickle
 
 import pdb
 
