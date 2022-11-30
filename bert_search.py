@@ -1,15 +1,15 @@
 from math import prod
 from search import Search
-from corpora import Corpus
+from corpora import Corpus, T, Generic
 from typing import Union
-from transformers import BertTokenizer, BertModel, logging
+from transformers import BertTokenizer, BertModel, logging # type: ignore[import]
 import torch
 from tqdm import tqdm
 
 
-class BertSearch(Search):
+class BertSearch(Search, Generic[T]):
     """neural TF-IDF search based on BERT"""
-    def __init__(self, corpus:Corpus, model='bert-base-uncased', chunk_size=100, save_path='weights/bert_encoded_corpus.pt'):
+    def __init__(self, corpus: Corpus[T], model='bert-base-uncased', chunk_size=100, save_path='weights/bert_encoded_corpus.pt'):
 
         # load BERT tokenizer and model from HuggingFace
         with torch.no_grad():
@@ -61,7 +61,7 @@ class BertSearch(Search):
             torch.save(self.encoded_corpus, self.save_path)
 
 
-    def search(self, query:str, n:Union[int,None]=None) -> list[tuple[str, float]]:
+    def search(self, query:str, n:Union[int,None]=None) -> list[tuple[T, float]]:
         with torch.no_grad():
             # tokenize the query, and encode with BERT
             encoded_query = self.tokenizer(query, return_tensors='pt')
@@ -74,7 +74,7 @@ class BertSearch(Search):
             # idf = torch.max(scores, dim=2).values.sum(dim=0)
             
             #chunked version
-            tf = []
+            tf_list: list[torch.Tensor] = [] 
             idf = torch.zeros(encoded_query.shape[0], device=encoded_query.device)
             
             #chunk size scales based on the number of tokens in the query
@@ -84,10 +84,10 @@ class BertSearch(Search):
             for corpus_chunk in self.encoded_corpus.split(chunk_size):
                 scores = torch.cosine_similarity(encoded_query[None,:,None], corpus_chunk[:,None], dim=3)
                 idf += scores.max(dim=2).values.sum(dim=0)
-                tf.append(scores.sum(dim=2))
+                tf_list.append(scores.sum(dim=2))
             
             #combine the chunks, and compute the tf-idf scores
-            tf = torch.cat(tf, dim=0)
+            tf = torch.cat(tf_list, dim=0)
             idf = len(self.keys) / idf
             tf_idf = (tf * idf[None,:].log2()).sum(dim=1)
             

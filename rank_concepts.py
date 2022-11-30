@@ -17,6 +17,12 @@ class Node:
     name: str
     examples: tuple
 
+@dataclass
+class Indicator:
+    name: str
+    display_name: str
+    description: str
+    dataset: str
 
 def get_uaz_results():
 
@@ -24,29 +30,24 @@ def get_uaz_results():
         lines = f.readlines()
         indicators = [json.loads(line) for line in lines]
 
-    corpus = []
-    name_to_text = {}
-    text_to_name = {}
-    text_to_display_name = {}
-    text_to_description = {}
-    text_to_indicator = {}
+    corpus_docs = []
+    name_to_key = {}
+    indicator_map: dict[int, Indicator] = {}
     for indicator in indicators:
         # doc_names.append(indicator['_source']['name'])
         for out in indicator['_source']['outputs']:
             #display name, description, unit, unit description
-            description = \
+            key = len(corpus_docs)
+            doc = \
 f"""name: {out['name']};
 display name: {out['display_name']};
 description: {out['description']};
 unit: {out['unit']};
 unit description: {out['unit_description']};"""
-            corpus.append(description)
-            name_to_text[out['name']] = description
-            text_to_name[description] = out['name']
-            text_to_display_name[description] = out['display_name']
-            text_to_description[description] = out['description']
-            text_to_indicator[description] = indicator['_source']['name']
-    corpus = Corpus(corpus)
+            corpus_docs.append(doc)
+            name_to_key[out['name']] = key
+            indicator_map[key] = Indicator(out['name'], out['display_name'], out['description'], indicator['_source']['name'])
+    corpus = Corpus.from_list(corpus_docs)
 
     with open('data/indicators_with_uaz_matches.jsonl', 'r') as f:
         lines = f.readlines()
@@ -57,10 +58,9 @@ unit description: {out['unit_description']};"""
     inversion_dict = defaultdict(list) # inversion_dict[node][indicator] = score
 
     for indicator in tqdm(indicators):
-        indicator_name = indicator['name']
         for output in indicator['outputs']:
             output_name = output['name']
-            assert output_name in name_to_text, f'"{output_name}" not in name_to_text'
+            assert output_name in name_to_key, f'"{output_name}" not in name_to_text'
 
             ontologies = output['ontologies']
             scores = []
@@ -98,7 +98,7 @@ unit description: {out['unit_description']};"""
     #         print(f'(score={score:.2f})\n{indicator_name}\n')
     #     print('\n')
 
-    return inversion_dict, corpus, name_to_text, text_to_name, text_to_display_name, text_to_description, text_to_indicator
+    return inversion_dict, corpus, name_to_key, indicator_map
 
 
 def main():
@@ -109,19 +109,16 @@ def main():
     nodes: list[Node] = []
     extract_nodes(data, nodes)
 
-    # #read descriptions from json array
-    # with open('data/descriptions.json') as f:
-    #     descriptions = json.load(f)
 
-    inversion_dict, corpus, name_to_text, text_to_name, text_to_display_name, text_to_description, text_to_indicator = get_uaz_results()
+    inversion_dict, corpus, name_to_key, indicator_map = get_uaz_results()
 
     #create search objects
     engines = {
-        # 'tf-idf': PlaintextSearch(corpus),
+        'tf-idf': PlaintextSearch(corpus),
         # 'sklearn': SklearnSearch(descriptions),
-        'bert': BertSearch(corpus)
+        # 'bert': BertSearch(corpus)
     }
-    main_engine = 'bert'
+    main_engine = 'tf-idf'
 
     
     matches = {}
@@ -138,11 +135,14 @@ def main():
     rows = [] # matcher,query node,query string,dataset,indicator,display name,description,score
     for node, match in matches.items():
         for engine, results in match.items():
-            for text, score in results:
-                rows.append([engine, node.name, node_to_query_string(node), text_to_name[text], text_to_indicator[text], text_to_display_name[text], text_to_description[text], score])
+            for key, score in results:
+                indicator = indicator_map[key]
+                rows.append([engine, node.name, node_to_query_string(node), indicator.dataset, indicator.name, indicator.display_name, indicator.description, score])
         for name, score in inversion_dict[node.name][:3]:
-            text = name_to_text[name]
-            rows.append(['UAZ', node.name, node_to_query_string(node), name, text_to_indicator[text], text_to_display_name[text], text_to_description[text], score])
+            key = name_to_key[name]
+            indicator = indicator_map[key]
+            assert indicator.name == name, f'{indicator.name} != {name}'
+            rows.append(['UAZ', node.name, node_to_query_string(node), indicator.dataset, indicator.name, indicator.display_name, indicator.description, score])
 
     df = pd.DataFrame(rows, columns=['matcher', 'query node', 'query string', 'dataset', 'indicator', 'display name', 'description', 'score'])
     df.to_csv('output/ranked_concepts.csv', index=False)
@@ -156,8 +156,8 @@ def main():
     some_agree = 0
     for node, match in matches.items():
         results = match[main_engine]
-        engine_results = set([text_to_indicator[result[0]] for result in results])
-        uaz_results = set([text_to_indicator[name_to_text[name]] for name, score in inversion_dict[node.name][:3]])
+        engine_results = set([indicator_map[result[0]].name for result in results])
+        uaz_results = set([indicator_map[name_to_key[name]].name for name, score in inversion_dict[node.name][:3]])
 
         if engine_results == uaz_results:
             if len(engine_results) == 0:
@@ -174,7 +174,6 @@ def main():
     print(f'all disagree: {all_disagree}')
     print(f'some agree: {some_agree}')
 
-    pdb.set_trace()
 
     pass
 

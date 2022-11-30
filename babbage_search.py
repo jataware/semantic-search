@@ -4,6 +4,7 @@ import pandas as pd
 import openai
 from openai.embeddings_utils import get_embedding, cosine_similarity
 from transformers import GPT2TokenizerFast
+from corpora import Corpus, T, Generic
 from search import Search
 
 
@@ -11,10 +12,12 @@ import pdb
 
 
 
-class BabbageSearch(Search):
-    def __init__(self, corpus: list[str]):
+class BabbageSearch(Search, Generic[T]):
+    def __init__(self, corpus: Corpus[T]):
         set_api_key()
-        self.corpus = corpus
+        keyed_corpus = corpus.get_keyed_corpus()
+        self.keys = list(keyed_corpus.keys())
+        self.corpus = list(keyed_corpus.values())
         self.tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
         self.embeddings = self._build_embeddings()
 
@@ -36,19 +39,17 @@ class BabbageSearch(Search):
         return embeddings
 
 
-    def search(self, query: str, n: int = None) -> list[tuple[str, float]]:
+    def search(self, query: str, n: int = None) -> list[tuple[T, float]]:
         encoded_query = get_embedding(query, engine='text-search-babbage-doc-001')
         encoded_query = np.array(encoded_query)
         
-
         results = []
-        for doc, encoded_doc in zip(self.corpus, self.embeddings):
-            score = cosine_similarity(encoded_query, encoded_doc)
+        for key, encoded_doc in zip(self.keys, self.embeddings):
+            score: float = cosine_similarity(encoded_query, encoded_doc)
             
             if score > 0:
-                results.append((doc, score))
-            
-            
+                results.append((key, score))
+                
         results.sort(key=lambda x: x[1], reverse=True)
 
         if n is not None:
