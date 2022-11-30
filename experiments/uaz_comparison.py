@@ -146,7 +146,9 @@ def main():
 
     df = pd.DataFrame(rows, columns=['matcher', 'query node', 'query string', 'dataset', 'indicator', 'display name', 'description', 'score'])
     df.to_csv('output/ranked_concepts.csv', index=False)
-    
+
+    # save the alternate format comparison
+    convert_to_jata_vs_uaz(df, 'output/jata_vs_uaz_v2.csv')
 
 
     #count agreement/disagreement between bert and uaz
@@ -236,6 +238,48 @@ def box_string(concept: str, sym:str='#'):
         s += f'\n{sym} {line:<{max_len}} {sym}'
     s += f'\n{sym * (max_len + 4)}'
     return s
+
+
+def convert_to_jata_vs_uaz(df: pd.DataFrame, path: str):
+    #TODO: make this use the indicators dataclass
+    query_nodes = df['query node'].unique()
+    
+    uaz_q = set(df[df['matcher']=='UAZ']['query node'].unique())
+    bert_q = set(df[df['matcher']=='tf-idf']['query node'].unique())
+    print(f"{len(uaz_q)} concepts matched by UAZ")
+    print(f"{len(bert_q)} concepts matched by Semantic Search")
+    
+    matched = uaz_q & bert_q
+    print(f"{len(matched)} concepts were matched by both systems")
+
+    matches = {}
+    results = []
+    for q in matched:
+        bert_best = df[(df['query node']==q) & (df['matcher']=='tf-idf')].sort_values(by='score', ascending=False).iloc[0]
+        uaz_best = df[(df['query node']==q) & (df['matcher']=='UAZ')].sort_values(by='score', ascending=False).iloc[0]
+        matches[q] = {'tf-idf': bert_best, 'uaz': uaz_best}
+        
+        jata = f"""Dataset: {bert_best.dataset}\n
+Indicator: {bert_best.indicator}\n
+Display Name: {bert_best['display name']}\n
+Description: {bert_best['description']}"""
+        
+        uaz = f"""Dataset: {uaz_best.dataset}\n
+Indicator: {uaz_best.indicator}\n
+Display Name: {uaz_best['display name']}\n
+Description: {uaz_best['description']}""" 
+        
+        res = dict(concept=bert_best['query node'],
+                query=bert_best['query string'],
+                jataware=jata,
+                uaz=uaz)
+        results.append(res)
+
+    results_df = pd.DataFrame(results)
+
+    results_df.to_csv(path, index=False)
+
+
 
 
 if __name__ == '__main__':
