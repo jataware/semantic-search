@@ -1,3 +1,4 @@
+# run in root folder: `python -m experiments.uaz_comparison`
 import json
 import yaml
 from dataclasses import dataclass
