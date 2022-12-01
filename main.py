@@ -1,9 +1,10 @@
 import json
 from cmd import Cmd
-from tf_idf_search import PlaintextSearch, SklearnSearch
-from bert_search import BertSearch
-from babbage_search import BabbageSearch
+from search.tf_idf_search import PlaintextSearch, SklearnSearch
+from search.bert_search import BertSearch
+from search.babbage_search import BabbageSearch
 from argparse import ArgumentParser
+from search.corpora import Indicators
 
 class SearchShell(Cmd):
     intro = 'Search for matching descriptors given a query'
