@@ -114,11 +114,11 @@ def main():
 
     #create search objects
     engines = {
-        'tf-idf': PlaintextSearch(corpus),
+        # 'tf-idf': PlaintextSearch(corpus),
         # 'sklearn': SklearnSearch(descriptions),
-        # 'bert': BertSearch(corpus)
+        'bert': BertSearch(corpus)
     }
-    main_engine = 'tf-idf'
+    main_engine = 'bert'
 
     
     matches = {}
@@ -148,7 +148,7 @@ def main():
     df.to_csv('output/ranked_concepts.csv', index=False)
 
     # save the alternate format comparison
-    convert_to_jata_vs_uaz(df, 'output/jata_vs_uaz_v2.csv')
+    convert_to_jata_vs_uaz(df, 'output/jata_vs_uaz_v2.csv', engine=main_engine)
 
 
     #count agreement/disagreement between bert and uaz
@@ -240,12 +240,11 @@ def box_string(concept: str, sym:str='#'):
     return s
 
 
-def convert_to_jata_vs_uaz(df: pd.DataFrame, path: str):
+def convert_to_jata_vs_uaz(df: pd.DataFrame, path: str, engine: str='bert'):
     #TODO: make this use the indicators dataclass
-    query_nodes = df['query node'].unique()
     
     uaz_q = set(df[df['matcher']=='UAZ']['query node'].unique())
-    bert_q = set(df[df['matcher']=='tf-idf']['query node'].unique())
+    bert_q = set(df[df['matcher']==engine]['query node'].unique())
     print(f"{len(uaz_q)} concepts matched by UAZ")
     print(f"{len(bert_q)} concepts matched by Semantic Search")
     
@@ -255,9 +254,9 @@ def convert_to_jata_vs_uaz(df: pd.DataFrame, path: str):
     matches = {}
     results = []
     for q in matched:
-        bert_best = df[(df['query node']==q) & (df['matcher']=='tf-idf')].sort_values(by='score', ascending=False).iloc[0]
+        bert_best = df[(df['query node']==q) & (df['matcher']==engine)].sort_values(by='score', ascending=False).iloc[0]
         uaz_best = df[(df['query node']==q) & (df['matcher']=='UAZ')].sort_values(by='score', ascending=False).iloc[0]
-        matches[q] = {'tf-idf': bert_best, 'uaz': uaz_best}
+        matches[q] = {engine: bert_best, 'uaz': uaz_best}
         
         jata = f"""Dataset: {bert_best.dataset}\n
 Indicator: {bert_best.indicator}\n
