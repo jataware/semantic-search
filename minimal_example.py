@@ -1,5 +1,6 @@
 from search.corpora import Indicators
 from search.bert_search import BertSearch
+# from search.tf_idf_search import PlaintextSearch # alternate search engine
 
 
 # load a corpus of documents, and set up a search engine
