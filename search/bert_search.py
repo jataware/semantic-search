@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 class BertSearch(Search, Generic[T]):
     """neural TF-IDF search based on BERT"""
-    def __init__(self, corpus: Corpus[T], model='bert-base-uncased', chunk_size=100, save_path='weights/bert_encoded_corpus.pt'):
+    def __init__(self, corpus: Corpus[T], model='bert-base-uncased', chunk_size=100, save_path='weights/bert_encoded_corpus.pt', cuda=True):
 
         # load BERT tokenizer and model from HuggingFace
         with torch.no_grad():
@@ -18,8 +18,12 @@ class BertSearch(Search, Generic[T]):
             self.model = BertModel.from_pretrained(model)
 
             # move model to GPU
-            self.model = self.model.cuda()
+            if cuda:
+                self.model = self.model.cuda()
 
+        # save the device
+        self.device = next(self.model.parameters()).device
+        
         # set up the corpus and compute tf-idf
         keyed_corpus = corpus.get_keyed_corpus()
         self.keys = list(keyed_corpus.keys())
@@ -28,11 +32,12 @@ class BertSearch(Search, Generic[T]):
         self._build_tf_idf()
 
         self.chunk_size = chunk_size
+        
 
     def _build_tf_idf(self):
         #try to load the encoded corpus from disk
         try:
-            self.encoded_corpus = torch.load(self.save_path)
+            self.encoded_corpus = torch.load(self.save_path, map_location=self.device)
             print('Loaded bert encoded corpus from disk')
             return
         except FileNotFoundError:
@@ -48,7 +53,7 @@ class BertSearch(Search, Generic[T]):
             chunk_size = 20
             tokenized_corpus_chunks = []
             for i in range(0, len(tokenized_corpus['input_ids']), chunk_size):
-                tokenized_corpus_chunks.append({k: v[i:i+chunk_size].cuda() for k, v in tokenized_corpus.items()})
+                tokenized_corpus_chunks.append({k: v[i:i+chunk_size].to(device=self.device) for k, v in tokenized_corpus.items()})
             
             # encode each document using BERT
             encoded_corpus_chunks = []
@@ -60,22 +65,27 @@ class BertSearch(Search, Generic[T]):
             #save the corpus to disk
             torch.save(self.encoded_corpus, self.save_path)
 
+    def embed_query(self, query: str) -> torch.Tensor:
+        with torch.no_grad():
+            encoded_query = self.tokenizer(query, return_tensors='pt')
+            encoded_query = {k: v.to(device=self.device) for k, v in encoded_query.items()}
+            encoded_query = self.model(**encoded_query).last_hidden_state[0]
+            return encoded_query
 
+    
+    
     def search(self, query:str, n:Union[int,None]=None) -> list[tuple[T, float]]:
         with torch.no_grad():
-            # tokenize the query, and encode with BERT
-            encoded_query = self.tokenizer(query, return_tensors='pt')
-            encoded_query = {k: v.cuda() for k, v in encoded_query.items()} # move to GPU
-            encoded_query = self.model(**encoded_query).last_hidden_state[0]
+            encoded_query = self.embed_query(query) # tokenize and encode with BERT
 
-            # # doing tf-idf all at once takes up way too much memory, lol
+            # # doing tf-idf all at once takes up waaaay too much memory, lol. But keep for algorithm reference.
             # scores = torch.cosine_similarity(encoded_query[None,:,None], self.encoded_corpus[:,None], dim=3)
             # tf = torch.sum(scores, dim=2)
             # idf = torch.max(scores, dim=2).values.sum(dim=0)
             
             #chunked version
             tf_list: list[torch.Tensor] = [] 
-            idf = torch.zeros(encoded_query.shape[0], device=encoded_query.device)
+            idf = torch.zeros(encoded_query.shape[0], device=self.device)
             
             #chunk size scales based on the number of tokens in the query
             total_size = prod(self.encoded_corpus.shape) * encoded_query.shape[0]
