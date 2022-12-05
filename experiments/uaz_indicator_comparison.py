@@ -281,6 +281,68 @@ Description: {uaz_best['description']}"""
 
 
 
+
+
+def indicator_ontologies(data, ontologies):
+    """
+    A function to map UAZ ontologies back into
+    the submitted "partial" indicator object
+    Params:
+        - data: the indicator object
+        - ontologies: object from UAZ endpoint
+    """
+    ontology_dict = {"outputs": {}, "qualifier_outputs": {}}
+
+    # Reorganize UAZ response
+    for ontology in ontologies["outputs"]:
+        ontology_dict["outputs"][ontology["name"]] = ontology["ontologies"]
+
+    for ontology in ontologies["qualifier_outputs"]:
+        ontology_dict["qualifier_outputs"][ontology["name"]] = ontology["ontologies"]
+
+    # Map back into partial indicator object to build complete indicator
+    for output in data["outputs"]:
+        output["ontologies"] = ontology_dict["outputs"][output["name"]]
+
+    if data.get("qualifier_outputs", None):
+        for qualifier_output in data["qualifier_outputs"]:
+            qualifier_output["ontologies"] = ontology_dict["qualifier_outputs"][qualifier_output["name"]]
+
+    return data
+
+def fetch_ontologies_for_wdi():
+    import gzip as gz
+    import requests
+    import time
+
+    inds = []
+    with open('../data/indicators_with_uaz_matches.jsonl','r') as f:
+        for line in f:
+            inds.append(json.loads(line.split('\n')[0]))
+    
+    url = "http://linking.cs.arizona.edu/v1"
+    uaz_threshold = 0.6
+    uaz_hits = 10
+    headers = {"accept": "application/json", "Content-Type": "application/json"}
+    params = f"?maxHits={uaz_hits}&threshold={uaz_threshold}&compositional=true"
+    type_ = "groundIndicator"
+    url_ = f"{url}/{type_}{params}"
+
+    reprocessed = []
+    for ind in inds:
+        response = requests.put(url_, json=ind, headers=headers)
+        ind_new = indicator_ontologies(ind, response.json())
+        reprocessed.append(ind_new)
+        time.sleep(1)
+
+    with gz.open('../output/indicators_v2.jsonl.gz','a') as f:
+        for i in reprocessed:
+            out = json.dumps(i)+'\n'
+            f.write(out.encode('utf-8'))
+
+
+
+
 if __name__ == '__main__':
     main()
 
