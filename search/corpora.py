@@ -1,19 +1,14 @@
 # simple place to collect all the corpora available to search over
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 import json
-from typing import Union, Any, TypeVar, Generic
+from typing import TypeVar, Generic
 
 import pdb
 
-#TODO: figure out how to get mypy to allow int/string to work with Hashable: https://github.com/python/mypy/issues/2412
-# i.e. we want to be able to say dict[Hashable, string], where Hashable could be an int, string, etc.
-#TODO: replace optional passing in of pure list with a helper method that takes a list. the init should only take a dict
 
 
 T = TypeVar('T')
-
 class Corpus(Generic[T]):
     def __init__(self, docs: dict[T, str]):
         assert isinstance(docs, dict), "corpus must be a dict[T, str]"
