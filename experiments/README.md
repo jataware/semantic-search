@@ -1,9 +1,19 @@
 # Experiments
-## UAZ comparison
+## UAZ Indicators Comparison
 
 ```bash
 # must be at root of repo
-python -m experiments.uaz_comparison
+python -m experiments.uaz_indicator_comparison
 ```
 
-results are saved in the [output](../output) directory
+results are saved as `ranked_concepts.csv` in the [output](../output) directory
+
+
+## UAZ Documents Comparison
+
+```bash
+# must be at root of repo
+python -m experiments.uaz_document_comparison
+```
+
+results are saved as `ranked_docs.csv` in the [output](../output) directory
