@@ -6,7 +6,7 @@ import json
 import pdb
 
 def main():
-    # corpus = ResearchPapers.get_corpus()
+    corpus = ResearchPapers.get_corpus()
     # print('num documents:',len(corpus))
     count_uaz_concepts_in_docs()
 

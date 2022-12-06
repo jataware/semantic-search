@@ -63,13 +63,16 @@ class ResearchPapers(CorpusLoader):
         docs = {}
         for i, line in enumerate(lines):
             doc = json.loads(line)
+            id = doc['document_id']
             try:
                 text = doc['extracted_text']
-                chunks = ResearchPapers.chunk_doc(text)
-                for j, chunk in enumerate(chunks):
-                    docs[(i,j)] = chunk
             except:
-                pass
+                print(f'error parsing document {id} on line {i}. No extracted text.')
+                continue
+            
+            chunks = ResearchPapers.chunk_doc(text)
+            for j, chunk in enumerate(chunks):
+                docs[(id,j)] = chunk
         
         return Corpus(docs)
     
