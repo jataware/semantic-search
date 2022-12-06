@@ -1,11 +1,7 @@
 # simple place to collect all the corpora available to search over
 
 from abc import ABC, abstractmethod
-import json
 from typing import TypeVar, Generic, Iterator, Iterable
-
-import pdb
-
 
 
 T = TypeVar('T')
@@ -53,7 +49,10 @@ class CorpusLoader(ABC):
     #TODO: maybe some way to validate documents should be less than 512 tokens...
 
 
-class ResearchPapers(CorpusLoader):
+
+
+# TODO: maybe chunk on a sentence level rather than a paragraph level
+class DartPapers(CorpusLoader):
     @staticmethod
     def get_corpus() -> Corpus[tuple[int,int]]:  
         
@@ -70,7 +69,7 @@ class ResearchPapers(CorpusLoader):
                 print(f'error parsing document {id} on line {i}. No extracted text.')
                 continue
             
-            chunks = ResearchPapers.chunk_doc(text)
+            chunks = DartPapers.chunk_doc(text)
             for j, chunk in enumerate(chunks):
                 docs[(id,j)] = chunk
         
@@ -84,28 +83,3 @@ class ResearchPapers(CorpusLoader):
         return paragraphs
         
         
-
-
-class Indicators(CorpusLoader):
-    @staticmethod
-    def get_corpus() -> Corpus[tuple[str,str]]:
-        
-        with open('data/indicators.jsonl') as f:
-            lines = f.readlines()
-            indicators = [json.loads(line) for line in lines]
-
-        docs = {}
-        for indicator in indicators:
-            indicator_id = indicator['_source']['id']
-            for out in indicator['_source']['outputs']:
-                #name, display name, description, unit, unit description
-                description = \
-f"""name: {out['name']};
-display name: {out['display_name']};
-description: {out['description']};
-unit: {out['unit']};
-unit description: {out['unit_description']};"""
-                docs[(indicator_id, out['name'])] = description
-
-
-        return Corpus(docs)
