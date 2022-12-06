@@ -93,7 +93,7 @@ class Indicators(CorpusLoader):
 
         docs = {}
         for indicator in indicators:
-            indicator_name = indicator['_source']['name']
+            indicator_id = indicator['_source']['id']
             for out in indicator['_source']['outputs']:
                 #name, display name, description, unit, unit description
                 description = \
@@ -102,7 +102,7 @@ display name: {out['display_name']};
 description: {out['description']};
 unit: {out['unit']};
 unit description: {out['unit_description']};"""
-                docs[(indicator_name, out['name'])] = description
+                docs[(indicator_id, out['name'])] = description
 
 
         return Corpus(docs)

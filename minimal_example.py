@@ -2,7 +2,6 @@ from search.corpora import Indicators
 from search.bert_search import BertWordSearch, BertSentenceSearch
 # from search.tf_idf_search import PlaintextSearch # alternate search engine
 
-import pdb
 
 # load a corpus of documents, and set up a search engine
 corpus = Indicators.get_corpus()
