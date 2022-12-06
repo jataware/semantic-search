@@ -4,7 +4,7 @@ from search.tf_idf_search import PlaintextSearch, SklearnSearch
 from search.bert_search import BertWordSearch
 from search.babbage_search import BabbageSearch
 from argparse import ArgumentParser
-from search.corpora import Indicators
+from data.indicators import Indicators
 
 class SearchShell(Cmd):
     intro = 'Search for matching descriptors given a query'

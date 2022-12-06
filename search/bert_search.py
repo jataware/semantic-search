@@ -1,6 +1,6 @@
 from math import prod
 from .search import Search
-from .corpora import Corpus, T, Generic
+from data.corpora import Corpus, T, Generic
 from typing import Union
 from transformers import BertTokenizer, BertModel, logging # type: ignore[import]
 from sentence_transformers import SentenceTransformer

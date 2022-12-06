@@ -4,7 +4,7 @@ import yaml
 from dataclasses import dataclass
 from search.tf_idf_search import PlaintextSearch, SklearnSearch
 from search.bert_search import BertWordSearch
-from search.corpora import Corpus
+from data.corpora import Corpus
 from tqdm import tqdm
 from collections import defaultdict
 import pandas as pd

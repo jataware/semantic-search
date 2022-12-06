@@ -1,6 +1,6 @@
 import json
 import pdb
-from search.corpora import ResearchPapers
+from data.corpora import ResearchPapers
 
 #read in the example jsonl documents
 

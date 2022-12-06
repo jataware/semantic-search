@@ -1,4 +1,4 @@
-from search.corpora import Indicators
+from data.indicators import Indicators
 from search.bert_search import BertWordSearch, BertSentenceSearch
 # from search.tf_idf_search import PlaintextSearch # alternate search engine
 
