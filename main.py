@@ -1,7 +1,7 @@
 import json
 from cmd import Cmd
 from search.tf_idf_search import PlaintextSearch, SklearnSearch
-from search.bert_search import BertSearch
+from search.bert_search import BertWordSearch
 from search.babbage_search import BabbageSearch
 from argparse import ArgumentParser
 from search.corpora import Indicators
@@ -21,7 +21,7 @@ class SearchShell(Cmd):
             self.descriptions = json.load(f)
 
         self.text_search = PlaintextSearch(self.descriptions) if text else None
-        self.bert_search = BertSearch(self.descriptions) if bert else None
+        self.bert_search = BertWordSearch(self.descriptions) if bert else None
         self.babbage_search = BabbageSearch(self.descriptions) if babbage else None
         self.sklearn_search = SklearnSearch(self.descriptions) if sklearn else None
         

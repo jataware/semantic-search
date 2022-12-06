@@ -1,10 +1,6 @@
 __pycache__
 .ipynb_checkpoints
 
-# too big
-bert_encoded_corpus.pt
-
-
 #output results
 output/*
 

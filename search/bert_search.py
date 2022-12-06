@@ -7,9 +7,9 @@ import torch
 from tqdm import tqdm
 
 
-class BertSearch(Search, Generic[T]):
+class BertWordSearch(Search, Generic[T]):
     """neural TF-IDF search based on BERT"""
-    def __init__(self, corpus: Corpus[T], model='bert-base-uncased', chunk_size=100, save_path='weights/bert_encoded_corpus.pt', cuda=True):
+    def __init__(self, corpus: Corpus[T], model='bert-base-uncased', save_path='weights/bert_word_embedded_corpus.pt', chunk_size=100, cuda=True):
 
         # load BERT tokenizer and model from HuggingFace
         with torch.no_grad():
@@ -113,3 +113,8 @@ class BertSearch(Search, Generic[T]):
 
             return results
 
+
+
+class BertSentenceSearch(Search, Generic[T]):
+    def __init__(self, corpus: Corpus[T], model='all-mpnet-base-v2', chunk_size=100, save_path='weights/bert_sentence_embedded_corpus.pt', cuda=True):
+        ...
