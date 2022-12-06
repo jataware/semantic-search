@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 import json
-from typing import TypeVar, Generic
+from typing import TypeVar, Generic, Iterator, Iterable
 
 import pdb
 
@@ -20,6 +20,21 @@ class Corpus(Generic[T]):
 
     def __getitem__(self, key: T) -> str:
         return self.keyed_corpus[key]
+
+    def __len__(self) -> int:
+        return len(self.keyed_corpus)
+
+    def __iter__(self) -> Iterator[T]:
+        return iter(self.keyed_corpus)
+
+    def keys(self) -> Iterable[T]:
+        return self.keyed_corpus.keys()
+
+    def values(self) -> Iterable[str]:
+        return self.keyed_corpus.values()
+
+    def items(self) -> Iterable[tuple[T, str]]:
+        return self.keyed_corpus.items()
 
     @staticmethod
     def from_list(docs: list[str]) -> 'Corpus[int]':
@@ -40,16 +55,21 @@ class CorpusLoader(ABC):
 
 class ResearchPapers(CorpusLoader):
     @staticmethod
-    def get_corpus() -> Corpus[str]:
+    def get_corpus() -> Corpus[tuple[int,int]]:  
         
-        docs = {}
         with open('data/dart_cdr.json_mar_2022') as f:
             lines = f.readlines()
-            for i, line in enumerate(lines):
-                doc = json.loads(line)['extracted_text']
-                chunks = ResearchPapers.chunk_doc(doc)
+
+        docs = {}
+        for i, line in enumerate(lines):
+            doc = json.loads(line)
+            try:
+                text = doc['extracted_text']
+                chunks = ResearchPapers.chunk_doc(text)
                 for j, chunk in enumerate(chunks):
-                    docs[f'{i}_{j}'] = chunk
+                    docs[(i,j)] = chunk
+            except:
+                pass
         
         return Corpus(docs)
     
@@ -65,24 +85,24 @@ class ResearchPapers(CorpusLoader):
 
 class Indicators(CorpusLoader):
     @staticmethod
-    def get_corpus() -> Corpus[int]:
+    def get_corpus() -> Corpus[tuple[str,str]]:
         
         with open('data/indicators.jsonl') as f:
             lines = f.readlines()
             indicators = [json.loads(line) for line in lines]
 
-        descriptions = []
+        docs = {}
         for indicator in indicators:
+            indicator_name = indicator['_source']['name']
             for out in indicator['_source']['outputs']:
-                #display name, description, unit, unit description
+                #name, display name, description, unit, unit description
                 description = \
 f"""name: {out['name']};
 display name: {out['display_name']};
 description: {out['description']};
 unit: {out['unit']};
 unit description: {out['unit_description']};"""
-                descriptions.append(description)
+                docs[(indicator_name, out['name'])] = description
 
-        docs = {i: doc for i, doc in enumerate(descriptions)}
 
         return Corpus(docs)
