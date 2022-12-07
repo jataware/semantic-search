@@ -5,7 +5,7 @@ from search.bert_search import BertWordSearch, BertSentenceSearch
 
 # load a corpus of documents, and set up a search engine
 corpus = Indicators.get_corpus()
-engine = BertWordSearch(corpus) # pass cuda=False to run on CPU instead of (default) GPU
+engine = BertSentenceSearch(corpus) # pass cuda=False to run on CPU instead of (default) GPU
 
 # concept to search for in the corpus
 query = 'number of people who have been vaccinated'
