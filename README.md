@@ -10,3 +10,4 @@
 - plotly
 - openai
 - transformers (huggingface)
+- elasticsearch
