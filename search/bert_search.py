@@ -80,6 +80,8 @@ class BertWordSearch(Search, Generic[T]):
             encoded_query = self.embed_query(query) # tokenize and encode with BERT
 
             # # doing tf-idf all at once takes up waaaay too much memory, lol. But keep for algorithm reference.
+            # # cosine_similarity broadcast shape [num_corpus_docs, query_len, max_corpus_doc_len, embedding_size]
+            # # result shape: [num_corpus_docs, query_len, max_corpus_doc_len]
             # scores = torch.cosine_similarity(encoded_query[None,:,None], self.encoded_corpus[:,None], dim=3)
             # tf = torch.sum(scores, dim=2)
             # idf = torch.max(scores, dim=2).values.sum(dim=0)
