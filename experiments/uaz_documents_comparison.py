@@ -10,8 +10,20 @@ def main():
     concept_map = get_uaz_concepts_to_docs()
 
 
-def get_concept(actor: dict) -> list[str]:
+def get_concepts(actor: dict) -> list[str]:
     results = [i['name'] for i in actor['concept']['db_refs']['WM_FLAT']]
+    return results
+
+def get_docs(evidence: list) -> list[str]:
+    assert isinstance(evidence, list), f'expected list, got {type(evidence)}'
+    doc_ids = []
+    for e in evidence:
+        try:
+            if e['source_api'] == 'eidos':
+                doc_ids.append(e['text_refs']['DART'])
+        except:
+            pdb.set_trace()
+    return doc_ids
 
 def get_uaz_concepts_to_docs():
     corpus = DartPapers.get_corpus()
@@ -21,18 +33,21 @@ def get_uaz_concepts_to_docs():
         lines = f.readlines()
     
     concepts = {} # concept -> set<doc-id>
+    docs = set() # list of all docs encountered
 
     for line in lines:
         data = json.loads(line)
-        pdb.set_trace()
-        for evidence in data['evidence']: # [<index>]['text_refs']['DART']
-            id = evidence['text_refs']['DART']
-            pdb.set_trace()
-        # id = data['id']
-        pdb.set_trace()
+        line_concepts = get_concepts(data['subj']) + get_concepts(data['obj'])
+        doc_ids = get_docs(data['evidence'])
+        for concept in line_concepts:
+            if concept not in concepts:
+                concepts[concept] = set()
+            concepts[concept].update(doc_ids)
+        docs.update(doc_ids)
+
+    print(f'concepts: {concepts}')
+    pdb.set_trace()    
     
-    
-    pdb.set_trace()
     
     # # docs = {}
     # with open('data/dart_cdr.json_mar_2022') as f:
