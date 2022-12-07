@@ -54,6 +54,8 @@ unit description: days;
 ### [DART Papers](data/dart_papers.py)
 A collection of research papers used in the DART project. Since papers are generally longer than LLMs can accommodate, they are split up into chunks (currently by paragraph, but perhaps this will be changed to by sentence). Each document id is a tuple of the `(paper_id, chunk_index)`, specifying which specific paper, and which chunk of the paper the description is for. Descriptions are the raw text of the chunk, and are not formatted in any way.
 
+NOTE: to use this corpus, you must separately download the DART papers (~1.3GB), and save them to `data/dart_cdr.json_mar_2022`.
+
 ### [World Modelers Ontology Nodes](data/wm_ontology.py)
 Mainly for convenience, this corpus provides all of the nodes in the World Modelers flat ontology and additional terms that are examples of each node. This provides a convenient way to use nodes as a search query. Each document id is simple the node name, and the description is a comma separated list of the node name and all of its examples. Some examples:
 ```
@@ -75,9 +77,6 @@ corpus = Indicators.get_corpus()
 for doc_id, doc in corpus.items():
     print(doc_id, doc)
 ```
-
-- DART Documents: ()(requires separate download of DART documents)
-- World Modelers Ontology Nodes:
 
 ## Search Engine
 So far the following search engines are implemented:
