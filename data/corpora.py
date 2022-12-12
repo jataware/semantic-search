@@ -1,7 +1,7 @@
 # simple place to collect all the corpora available to search over
 
 from abc import ABC, abstractmethod
-from typing import TypeVar, Generic, Iterator, Iterable
+from typing import TypeVar, Generic, Iterator, Iterable, Callable
 
 
 T = TypeVar('T')
@@ -39,6 +39,16 @@ class Corpus(Generic[T]):
     @staticmethod
     def from_dict(docs: dict[T, str]) -> 'Corpus[T]':
         return Corpus(docs)
+
+    @staticmethod
+    def chunk(corpus: 'Corpus[T]', chunker: Callable[[str], list[str]]) -> 'Corpus[tuple[T, int]]':
+        """chunk a corpus into smaller documents"""
+        new_docs = {}
+        for key, doc in corpus.items():
+            chunks = chunker(doc)
+            for i, chunk in enumerate(chunks):
+                new_docs[(key, i)] = chunk
+        return Corpus(new_docs)
 
 
 #TODO: instead of any, tuple version should take a key type (i.e. hashable)

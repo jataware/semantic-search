@@ -119,7 +119,7 @@ class BertWordSearch(Search, Generic[T]):
 
 
 class BertSentenceSearch(Search, Generic[T]):
-    def __init__(self, corpus: Corpus[T], *, model='all-mpnet-base-v2', save_path='weights/bert_sentence_embedded_corpus.pt', cuda=True):
+    def __init__(self, corpus: Corpus[T], *, model='all-mpnet-base-v2', save_path='weights/bert_sentence_embedded_corpus.pt', cuda=True, batch_size=32):
 
         with torch.no_grad():
             logging.set_verbosity_error()
@@ -131,6 +131,7 @@ class BertSentenceSearch(Search, Generic[T]):
 
         # save the device
         self.device = next(self.model.parameters()).device
+        self.batch_size = batch_size
 
         # set up the corpus and compute tf-idf
         keyed_corpus = corpus.get_keyed_corpus()
@@ -151,7 +152,7 @@ class BertSentenceSearch(Search, Generic[T]):
 
         print('encoding corpus with BERT sentence encoder')
         with torch.no_grad():
-            self.embeddings = self.model.encode(self.corpus, show_progress_bar=True, device=self.device, convert_to_tensor=True)
+            self.embeddings = self.model.encode(self.corpus, show_progress_bar=True, device=self.device, convert_to_tensor=True, batch_size=self.batch_size)
             torch.save(self.embeddings, self.save_path)
 
     def embed_query(self, query: str) -> torch.Tensor:
