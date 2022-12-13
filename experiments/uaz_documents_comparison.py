@@ -52,8 +52,7 @@ def main():
 
     #blacklist function, reject results with less than 100 alphabetical characters
     import re, string
-    pattern = re.compile('[\W_]+')
-    pattern.sub('', string.ascii_letters)
+    pattern = re.compile('[^a-zA-Z]')
     blacklist = lambda x: len(x) < 100 or len(pattern.sub('', x)) < 100
     
     engine = BertSentenceSearch(corpus, DartPapers.__name__, batch_size=256, blacklist=blacklist)
