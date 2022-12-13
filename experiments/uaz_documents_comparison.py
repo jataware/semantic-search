@@ -44,12 +44,35 @@ class DartTop100(CorpusLoader):
 
 
 
-
+# from scalene import scalene_profiler
 def main():
-    # corpus = DartPapers.get_corpus()
-    # # engine = BertSentenceSearch(corpus, batch_size=256)
+    corpus = DartPapers.get_paragraph_corpus()
+    ontology = FlatOntology.get_corpus()
 
-    # ontology = FlatOntology.get_corpus()
+
+    #blacklist function, reject results with less than 100 alphabetical characters
+    import re, string
+    pattern = re.compile('[\W_]+')
+    pattern.sub('', string.ascii_letters)
+    blacklist = lambda x: len(x) < 100 or len(pattern.sub('', x)) < 100
+    
+    engine = BertSentenceSearch(corpus, DartPapers.__name__, batch_size=256, blacklist=blacklist)
+    
+    query = ontology['food']
+
+    for key, query in ontology.items():
+        # query = input('Enter query: ')
+        print("-----------------------------------------------------")
+        input(f'press ENTER to search query for ({key}) "{query}"')
+
+        matches = engine.search(query, n=10)
+        # print the results of the search
+        print('Top 10 matches:')
+        for match_id, score in matches:
+            raw_text = corpus[match_id]   # get the matching text for the given id
+            print(raw_text, end='\n\n\n') # print the text
+
+    # pdb.set_trace()
     # concept_map = get_uaz_concepts_to_docs(filter_empty=True)
 
     # found_concepts = []
@@ -70,7 +93,7 @@ def main():
 
     # top_papers = sorted(paper_counts.items(), key=lambda x: x[1], reverse=True)[:100]
 
-    corpus = DartTop100.get_corpus()
+    # corpus = DartTop100.get_corpus()
     pdb.set_trace()
 
 

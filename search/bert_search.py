@@ -1,11 +1,13 @@
 from math import prod
 from .search import Search
 from data.corpora import Corpus, T, Generic
-from typing import Union
+from typing import Union, Callable
 from transformers import BertTokenizer, BertModel, logging # type: ignore[import]
 from sentence_transformers import SentenceTransformer
 import torch
 from tqdm import tqdm
+from os.path import join
+import multiprocessing
 
 
 class BertWordSearch(Search, Generic[T]):
@@ -119,7 +121,7 @@ class BertWordSearch(Search, Generic[T]):
 
 
 class BertSentenceSearch(Search, Generic[T]):
-    def __init__(self, corpus: Corpus[T], *, model='all-mpnet-base-v2', save_path='weights/bert_sentence_embedded_corpus.pt', cuda=True, batch_size=32):
+    def __init__(self, corpus: Corpus[T], corpus_name: str, *, model='all-mpnet-base-v2', save_path='weights', cuda=True, batch_size=32, blacklist: Callable[[str],bool]=lambda x: False):
 
         with torch.no_grad():
             logging.set_verbosity_error()
@@ -137,8 +139,11 @@ class BertSentenceSearch(Search, Generic[T]):
         keyed_corpus = corpus.get_keyed_corpus()
         self.keys = list(keyed_corpus.keys())
         self.corpus = list(keyed_corpus.values())
-        self.save_path = save_path
+        self.save_path = join(save_path, f'{corpus_name}_sentence_embeddings.pt')
         self._build_embeddings()
+
+        #build a list of the indices of the blacklisted documents
+        self.blacklist = torch.tensor([i for i, value in enumerate(self.corpus) if blacklist(value)], device=self.device)
 
 
     def _build_embeddings(self):
@@ -161,9 +166,19 @@ class BertSentenceSearch(Search, Generic[T]):
 
     def search(self, query:str, n:Union[int,None]=None) -> list[tuple[T, float]]:
         with torch.no_grad():
+            # embed the query, and compare to all embeddings for documents in the corpus
             encoded_query = self.embed_query(query)
             scores = torch.cosine_similarity(encoded_query[None,:], self.embeddings, dim=1)
-            results = [(self.keys[i], scores[i].item()) for i in torch.argsort(scores, descending=True)]
+            
+            # get the ranked indices of all the documents (filtering out blacklisted ones)
+            ranks = torch.argsort(scores, descending=True)
+            ranks = ranks[~torch.isin(ranks, self.blacklist)]
+
+            # take the top n results (do this first otherwise very slow)
             if n is not None:
-                results = results[:n]
+                ranks = ranks[:n]
+
+            # collect the keys and scores for the top results
+            results = [(self.keys[i], score) for i, score in zip(ranks, scores[ranks].cpu().numpy())]
+                        
             return results

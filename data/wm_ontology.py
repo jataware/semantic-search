@@ -47,4 +47,9 @@ class FlatOntology(CorpusLoader):
 
     @staticmethod
     def node_to_query_string(node: Node):
-        return ', '.join([' '.join(node.name.split('_'))] + list(node.examples))
+        terms = list(node.examples)
+        name = node.name.replace('_', ' ')
+        if name not in terms:
+            terms = [name] + terms
+        return ', '.join(terms)
+        # return ', '.join([' '.join(node.name.split('_'))] + list(node.examples))
