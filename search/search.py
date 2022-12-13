@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from .corpora import Corpus
+from data.corpora import Corpus
 from typing import Union
 
 class Search(ABC):

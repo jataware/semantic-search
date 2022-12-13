@@ -4,18 +4,14 @@ import yaml
 from dataclasses import dataclass
 from search.tf_idf_search import PlaintextSearch, SklearnSearch
 from search.bert_search import BertWordSearch
-from search.corpora import Corpus
+from data.corpora import Corpus
+from data.wm_ontology import FlatOntology
 from tqdm import tqdm
 from collections import defaultdict
 import pandas as pd
 
 import pdb
 
-
-@dataclass(order=True, frozen=True)
-class Node:
-    name: str
-    examples: tuple
 
 @dataclass
 class Indicator:
@@ -90,25 +86,13 @@ unit description: {out['unit_description']};"""
         scores.sort(key=lambda x: x[1], reverse=True)
         inversion_dict[node_name] = scores
     
-    # #DEBUG print out the top 3 scores for each node
-    # for node_name, scores in inversion_dict.items():
-    #     print(box_string(f'NODE: "{node_name}"'))
-    #     print(box_string(f'QUERY: "{node_name}"', sym='·'))
-    #     for indicator_name, score in scores[:3]:
-    #         print(f'(score={score:.2f})\n{indicator_name}\n')
-    #     print('\n')
 
     return inversion_dict, corpus, name_to_key, indicator_map
 
 
 def main():
-    #extract the nodes from the ontology
-    with open('data/CompositionalOntology_metadata.yml', 'r') as f:
-        data = yaml.safe_load(f)[0]
-        assert isinstance(data, dict), 'data is not a dictionary'
-    nodes: list[Node] = []
-    extract_nodes(data, nodes)
-
+    # get the nodes from the WM ontology
+    nodes = FlatOntology.get_nodes()
 
     inversion_dict, corpus, name_to_key, indicator_map = get_uaz_results()
 
@@ -124,7 +108,7 @@ def main():
     matches = {}
     for node in tqdm(nodes, desc='searching for nodes'):
         # name = node.name
-        query = node_to_query_string(node)
+        query = FlatOntology.node_to_query_string(node)
 
         matches[node] = {}
         for engine_name, engine in engines.items():
@@ -137,12 +121,12 @@ def main():
         for engine, results in match.items():
             for key, score in results:
                 indicator = indicator_map[key]
-                rows.append([engine, node.name, node_to_query_string(node), indicator.dataset, indicator.name, indicator.display_name, indicator.description, score])
+                rows.append([engine, node.name, FlatOntology.node_to_query_string(node), indicator.dataset, indicator.name, indicator.display_name, indicator.description, score])
         for name, score in inversion_dict[node.name][:3]:
             key = name_to_key[name]
             indicator = indicator_map[key]
             assert indicator.name == name, f'{indicator.name} != {name}'
-            rows.append(['UAZ', node.name, node_to_query_string(node), indicator.dataset, indicator.name, indicator.display_name, indicator.description, score])
+            rows.append(['UAZ', node.name, FlatOntology.node_to_query_string(node), indicator.dataset, indicator.name, indicator.display_name, indicator.description, score])
 
     df = pd.DataFrame(rows, columns=['matcher', 'query node', 'query string', 'dataset', 'indicator', 'display name', 'description', 'score'])
     df.to_csv('output/ranked_concepts.csv', index=False)
@@ -179,55 +163,6 @@ def main():
 
     pass
 
-
-    # #print out the matches
-    # for node, match in matches.items():
-    #     print(box_string(f'NODE: "{node.name}"'))
-    #     print(box_string(f'QUERY: "{node_to_query_string(node)}"', sym='·'))
-        
-    #     for engine, results in match.items():
-    #         print(f'------------------------------------ [{engine} matches] ---------------------------')
-    #         for text, score in results:
-    #             print(f'(score={score:.2f})\n{text_to_name[text]}\n{text}\n')
-
-    #     print(f'------------------------------------ [UAZ matches] ---------------------------')
-    #     for name, score in inversion_dict[node.name][:3]:
-    #         print(f'(score={score:.2f})\n{name}\n{name_to_text[name]}\n')
-        
-    #     print('\n')
-
-    # #save the matches as a pickle
-    # with open('matches.pkl', 'wb') as f:
-    #     pickle.dump(matches, f)
-    
-    # #save the matches to a json file. First need to convert the nodes to strings
-    # matches = {str(node): match for node, match in matches.items()}
-    # with open('matches.json', 'w') as f:
-    #     json.dump(matches, f, indent=4)
-
-
-
-
-def extract_nodes(data: dict, nodes: list[Node]):
-    assert 'node' in data, 'dictionary does not contain a node at the top level'
-    raw_node = data['node']
-
-    #get the node name and any examples if they exist
-    name = raw_node['name']
-    examples = tuple(raw_node['examples']) if 'examples' in raw_node else ()
-    
-    #insert the node into the list of nodes
-    nodes.append(Node(name, examples))
-
-    #recurse on the children
-    children = raw_node['children'] if 'children' in raw_node else []
-    
-    for child in children:
-        extract_nodes(child, nodes)
-
-    
-def node_to_query_string(node: Node):
-    return ', '.join([' '.join(node.name.split('_'))] + list(node.examples))
 
 
 def box_string(concept: str, sym:str='#'):
