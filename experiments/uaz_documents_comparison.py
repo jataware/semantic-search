@@ -4,8 +4,10 @@ from data.dart_papers import DartPapers
 from data.wm_ontology import FlatOntology
 from data.corpora import Corpus, CorpusLoader
 from search.bert_search import BertSentenceSearch
+from scipy.sparse.csgraph import floyd_warshall
 import json
 from tqdm import tqdm
+import torch
 
 import pdb
 
@@ -109,46 +111,78 @@ def main():
 
 def main2():
     corpus = DartPapers.get_paragraph_corpus()
-    ontology = FlatOntology.get_corpus()
-
-
+    
     #blacklist function, reject results with less than 100 alphabetical characters
     import re, string
     pattern = re.compile('[^a-zA-Z]')
     blacklist = lambda x: len(x) < 1000 or len(pattern.sub('', x)) < 1000
     
+    # pdb.set_trace()
     engine = BertSentenceSearch(corpus, save_name=DartPapers.__name__, batch_size=256, blacklist=blacklist)
 
+    
+    ontology = FlatOntology.get_corpus()
+    # adj, nodes = FlatOntology.get_adjacency_matrix()
+    # dist_matrix = floyd_warshall(adj, directed=False)
+
+    leaf_nodes = FlatOntology.get_leaf_nodes()
+    blacklisted_nodes = set(['description', 'private', 'public', 'informing', 'observer', 'international'])
+
+
+
+    # create a list of linked concepts
     links = {} # map<paragraph_id, list<concept_id>>
+    embeddings = {}
 
-
-    for key, query in tqdm([*ontology.items()]):
-        # query = input('Enter query: ')
-        # print("-----------------------------------------------------")
-        # input(f'press ENTER to search query for ({key}) "{query}"')
-
+    # for key, query in tqdm([*ontology.items()], desc='matching concept pairs'):
+    for key in tqdm(leaf_nodes, desc='matching concept pairs'):
+        if key in blacklisted_nodes:
+            continue
+        query = ontology[key]
+        embeddings[key] = engine.embed_query(query).cpu()
         matches = engine.search(query, n=10)
         for match_id, score in matches:
             if match_id not in links:
                 links[match_id] = []
             links[match_id].append(key)
 
-        # # print the results of the search
-        # print('Top 10 matches:')
-        # for match_id, score in matches:
-        #     raw_text = corpus[match_id]   # get the matching text for the given id
-        #     print(raw_text, end='\n\n\n') # print the text
-
-
-    for paragraph_id, concept_ids in links.items():
+    #rank all of the concept pairs
+    ranked_links = [] #list<tuple<paragraph_id, concept_id, concept_id, score>> where score is the distance between the two concepts
+    for paragraph_id, concept_ids in tqdm([*links.items()], desc='ranking concept pairs'):
         if len(concept_ids) > 1:
-            # print(paragraph_id, concept_ids)
-            print('-------------------------')
-            print(f'{corpus[paragraph_id]}')
-            for concept_id in concept_ids:
-                print(f'- {concept_id}: {ontology[concept_id]}')
+            for concept_id1 in concept_ids:
+                for concept_id2 in concept_ids:
+                    if concept_id1 == concept_id2:
+                        continue
+                    
+                    embedding1 = embeddings[concept_id1]
+                    embedding2 = embeddings[concept_id2]
+                    dist = torch.cosine_similarity(embedding1, embedding2, dim=0)
+                    ranked_links.append((paragraph_id, concept_id1, concept_id2, dist))
 
-            print('\n\n\n')
+    ranked_links = sorted(ranked_links, key=lambda x: x[3])
+
+    # print the results of the matches
+    for paragraph_id, concept_id1, concept_id2, score in ranked_links[:100]:
+        print('-------------------------')
+        print(f'{corpus[paragraph_id]}')
+        print(f'- {concept_id1}: {ontology[concept_id1]}')
+        print(f'- {concept_id2}: {ontology[concept_id2]}')
+        print(f'- score: {score}')
+
+        print('\n\n\n')
+
+
+    # # print the results of the matches
+    # for paragraph_id, concept_ids in links.items():
+    #     if len(concept_ids) > 1:
+    #         # print(paragraph_id, concept_ids)
+    #         print('-------------------------')
+    #         print(f'{corpus[paragraph_id]}')
+    #         for concept_id in concept_ids:
+    #             print(f'- {concept_id}: {ontology[concept_id]}')
+
+    #         print('\n\n\n')
     
     pdb.set_trace()
 
