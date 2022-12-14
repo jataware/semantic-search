@@ -5,9 +5,15 @@ from data.wm_ontology import FlatOntology
 from data.corpora import Corpus, CorpusLoader
 from search.bert_search import BertSentenceSearch
 import json
+from tqdm import tqdm
 
 import pdb
 
+
+#TODO:
+# - basic term to documents matching: check if top 20 from this in the uaz matches
+# - basic term matching: make matches out of top 20 from this, checking for paragraphs that match multiple terms, compare to uaz matches
+# - tbd how to do basic polarity on pairs of matched terms...
 
 
 
@@ -55,9 +61,9 @@ def main():
     pattern = re.compile('[^a-zA-Z]')
     blacklist = lambda x: len(x) < 100 or len(pattern.sub('', x)) < 100
     
-    engine = BertSentenceSearch(corpus, DartPapers.__name__, batch_size=256, blacklist=blacklist)
+    engine = BertSentenceSearch(corpus, save_name=DartPapers.__name__, batch_size=256, blacklist=blacklist)
     
-    query = ontology['food']
+    # query = ontology['food']
 
     for key, query in ontology.items():
         # query = input('Enter query: ')
@@ -101,7 +107,50 @@ def main():
     #     results = engine.search(ontology[concept],n=3)
 
 
+def main2():
+    corpus = DartPapers.get_paragraph_corpus()
+    ontology = FlatOntology.get_corpus()
 
+
+    #blacklist function, reject results with less than 100 alphabetical characters
+    import re, string
+    pattern = re.compile('[^a-zA-Z]')
+    blacklist = lambda x: len(x) < 1000 or len(pattern.sub('', x)) < 1000
+    
+    engine = BertSentenceSearch(corpus, save_name=DartPapers.__name__, batch_size=256, blacklist=blacklist)
+
+    links = {} # map<paragraph_id, list<concept_id>>
+
+
+    for key, query in tqdm([*ontology.items()]):
+        # query = input('Enter query: ')
+        # print("-----------------------------------------------------")
+        # input(f'press ENTER to search query for ({key}) "{query}"')
+
+        matches = engine.search(query, n=10)
+        for match_id, score in matches:
+            if match_id not in links:
+                links[match_id] = []
+            links[match_id].append(key)
+
+        # # print the results of the search
+        # print('Top 10 matches:')
+        # for match_id, score in matches:
+        #     raw_text = corpus[match_id]   # get the matching text for the given id
+        #     print(raw_text, end='\n\n\n') # print the text
+
+
+    for paragraph_id, concept_ids in links.items():
+        if len(concept_ids) > 1:
+            # print(paragraph_id, concept_ids)
+            print('-------------------------')
+            print(f'{corpus[paragraph_id]}')
+            for concept_id in concept_ids:
+                print(f'- {concept_id}: {ontology[concept_id]}')
+
+            print('\n\n\n')
+    
+    pdb.set_trace()
 
 
 def get_concepts(actor: dict) -> list[str]:
@@ -169,4 +218,5 @@ def get_uaz_concepts_to_docs(*, filter_empty=False):
     # print(concepts)
 
 if __name__ == '__main__':
-    main()
+    # main()
+    main2()

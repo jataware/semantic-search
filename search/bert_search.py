@@ -121,7 +121,7 @@ class BertWordSearch(Search, Generic[T]):
 
 
 class BertSentenceSearch(Search, Generic[T]):
-    def __init__(self, corpus: Corpus[T], corpus_name: str, *, model='all-mpnet-base-v2', save_path='weights', cuda=True, batch_size=32, blacklist: Callable[[str],bool]=lambda x: False):
+    def __init__(self, corpus: Corpus[T], *, model='all-mpnet-base-v2', save_path='weights', save_name=None, cuda=True, batch_size=32, blacklist: Callable[[str],bool]=lambda x: False):
 
         with torch.no_grad():
             logging.set_verbosity_error()
@@ -139,7 +139,7 @@ class BertSentenceSearch(Search, Generic[T]):
         keyed_corpus = corpus.get_keyed_corpus()
         self.keys = list(keyed_corpus.keys())
         self.corpus = list(keyed_corpus.values())
-        self.save_path = join(save_path, f'{corpus_name}_sentence_embeddings.pt')
+        self.save_path = join(save_path, f'{save_name}_sentence_embeddings.pt') if save_name is not None else None
         self._build_embeddings()
 
         #build a list of the indices of the blacklisted documents
@@ -148,17 +148,21 @@ class BertSentenceSearch(Search, Generic[T]):
 
     def _build_embeddings(self):
         #try to load the encoded corpus from disk
-        try:
-            self.embeddings = torch.load(self.save_path, map_location=self.device)
-            print('Loaded bert sentence encoded corpus from disk')
-            return
-        except FileNotFoundError:
-            pass
+        if self.save_path is not None:
+            try:
+                self.embeddings = torch.load(self.save_path, map_location=self.device)
+                print('Loaded bert sentence encoded corpus from disk')
+                return
+            except FileNotFoundError:
+                pass
 
         print('encoding corpus with BERT sentence encoder')
         with torch.no_grad():
             self.embeddings = self.model.encode(self.corpus, show_progress_bar=True, device=self.device, convert_to_tensor=True, batch_size=self.batch_size)
-            torch.save(self.embeddings, self.save_path)
+            
+            #save the corpus to disk
+            if self.save_path is not None:
+                torch.save(self.embeddings, self.save_path)
 
     def embed_query(self, query: str) -> torch.Tensor:
         with torch.no_grad():

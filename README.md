@@ -13,7 +13,7 @@ from search.bert_search import BertSentenceSearch
 
 # load a corpus of documents, and set up a search engine
 corpus = Indicators.get_corpus()
-engine = BertSentenceSearch(corpus, Indicators.__name__)
+engine = BertSentenceSearch(corpus, save_name=Indicators.__name__)
 
 # concept to search for in the corpus
 query = 'number of people who have been vaccinated'

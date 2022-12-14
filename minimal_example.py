@@ -1,11 +1,12 @@
 from data.indicators import Indicators
-from search.bert_search import BertWordSearch, BertSentenceSearch
+from search.bert_search import BertSentenceSearch
 # from search.tf_idf_search import PlaintextSearch # alternate search engine
 
 
 # load a corpus of documents, and set up a search engine
 corpus = Indicators.get_corpus()
-engine = BertSentenceSearch(corpus, Indicators.__name__) # pass cuda=False to run on CPU instead of (default) GPU
+engine = BertSentenceSearch(corpus, save_name=Indicators.__name__)  # pass cuda=False to run on CPU instead of (default) GPU
+                                                                    # if save_name is set, encoded corpus will be saved/cached to disk
 
 # concept to search for in the corpus
 query = 'number of people who have been vaccinated'

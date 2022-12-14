@@ -14,15 +14,18 @@ class Indicators(CorpusLoader):
             indicator_id = indicator['_source']['id']
             for out in indicator['_source']['outputs']:
                 #name, display name, description, unit, unit description
-                description = \
-f"""name: {out['name']};
-display name: {out['display_name']};
-description: {out['description']};
-unit: {out['unit']};
-unit description: {out['unit_description']};"""
+                description = Indicators.get_indicator_string(out['name'], out['display_name'], out['description'], out['unit'], out['unit_description'])
                 docs[(indicator_id, out['name'])] = description
 
 
         return Corpus(docs)
 
 
+    @staticmethod
+    def get_indicator_string(name: str, display_name: str, description: str, unit: str, unit_description: str):
+        return \
+f"""name: {name};
+display name: {display_name};
+description: {description};
+unit: {unit};
+unit description: {unit_description};"""

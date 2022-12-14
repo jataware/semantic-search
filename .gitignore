@@ -7,3 +7,9 @@ output/*
 
 #model weights
 weights/*
+
+
+# anything related to profiling
+profile.html
+profile.json
+profile_test.py
