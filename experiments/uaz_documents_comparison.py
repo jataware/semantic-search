@@ -8,6 +8,7 @@ from scipy.sparse.csgraph import floyd_warshall
 import json
 from tqdm import tqdm
 import torch
+import re
 
 import pdb
 
@@ -16,6 +17,25 @@ import pdb
 # - basic term to documents matching: check if top 20 from this in the uaz matches
 # - basic term matching: make matches out of top 20 from this, checking for paragraphs that match multiple terms, compare to uaz matches
 # - tbd how to do basic polarity on pairs of matched terms...
+
+
+
+leaf_nodes = FlatOntology.get_leaf_nodes()
+blacklisted_nodes = set(['description', 'private', 'public', 'informing', 'observer', 'international', 'ask'])
+ontology = FlatOntology.get_corpus()
+
+def valid_ontology():
+    for key in leaf_nodes:
+        if key in blacklisted_nodes:
+            continue
+        yield key, ontology[key]
+
+
+#blacklist function, reject results with less than some number of alphabetical characters
+pattern = re.compile('[^a-zA-Z]')
+def blacklist_doc(N=500):
+    return lambda x: len(x) < N or len(pattern.sub('', x)) < N
+
 
 
 
@@ -58,16 +78,34 @@ def main():
     ontology = FlatOntology.get_corpus()
 
 
-    #blacklist function, reject results with less than 100 alphabetical characters
-    import re, string
-    pattern = re.compile('[^a-zA-Z]')
-    blacklist = lambda x: len(x) < 100 or len(pattern.sub('', x)) < 100
-    
-    engine = BertSentenceSearch(corpus, save_name=DartPapers.__name__, batch_size=256, blacklist=blacklist)
+    engine = BertSentenceSearch(corpus, save_name=DartPapers.__name__, batch_size=256, blacklist=blacklist_doc())
     
     # query = ontology['food']
 
-    for key, query in ontology.items():
+    
+    # create a pandas dataframe from the results
+    columns=['node', 'query', 'text_id', 'text_chunk', 'text', 'score']
+    rows = []
+    # for key, query in tqdm([*ontology.items()], desc='performing searches'):
+    for key, query in tqdm([*valid_ontology()], desc='performing searches'):
+        matches = engine.search(query, n=10)
+        for match_id, score in matches:
+            raw_text = corpus[match_id]
+            text_id, text_chunk = match_id
+            rows.append([key, query, text_id, text_chunk, raw_text, score])
+    
+    #sort rows by score
+    rows = sorted(rows, key=lambda x: x[-1], reverse=True)
+    
+    df = pd.DataFrame(rows, columns=columns)
+    df.to_csv('output/uaz_document_concept_matches.csv', index=False)
+    exit(1)
+    
+    
+    
+    # for key, query in ontology.items():
+    for key, query in valid_ontology():
+
         # query = input('Enter query: ')
         print("-----------------------------------------------------")
         input(f'press ENTER to search query for ({key}) "{query}"')
@@ -111,34 +149,14 @@ def main():
 
 def main2():
     corpus = DartPapers.get_paragraph_corpus()
-    
-    #blacklist function, reject results with less than 100 alphabetical characters
-    import re, string
-    pattern = re.compile('[^a-zA-Z]')
-    blacklist = lambda x: len(x) < 1000 or len(pattern.sub('', x)) < 1000
-    
-    # pdb.set_trace()
-    engine = BertSentenceSearch(corpus, save_name=DartPapers.__name__, batch_size=256, blacklist=blacklist)
-
-    
+    engine = BertSentenceSearch(corpus, save_name=DartPapers.__name__, batch_size=256, blacklist=blacklist_doc())
     ontology = FlatOntology.get_corpus()
-    # adj, nodes = FlatOntology.get_adjacency_matrix()
-    # dist_matrix = floyd_warshall(adj, directed=False)
-
-    leaf_nodes = FlatOntology.get_leaf_nodes()
-    blacklisted_nodes = set(['description', 'private', 'public', 'informing', 'observer', 'international'])
-
-
 
     # create a list of linked concepts
     links = {} # map<paragraph_id, list<concept_id>>
     embeddings = {}
 
-    # for key, query in tqdm([*ontology.items()], desc='matching concept pairs'):
-    for key in tqdm(leaf_nodes, desc='matching concept pairs'):
-        if key in blacklisted_nodes:
-            continue
-        query = ontology[key]
+    for key, query in tqdm([*valid_ontology()], desc='matching concept pairs'):
         embeddings[key] = engine.embed_query(query).cpu()
         matches = engine.search(query, n=10)
         for match_id, score in matches:
@@ -162,6 +180,20 @@ def main2():
 
     ranked_links = sorted(ranked_links, key=lambda x: x[3])
 
+    # create a pandas dataframe from the results
+    columns=['node1', 'node2', 'query1', 'query2', 'paper_id', 'chunk', 'text', 'score']
+    rows = []
+    for paragraph_id, concept_id1, concept_id2, score in ranked_links:
+        raw_text = corpus[paragraph_id]
+        text_id, text_chunk = paragraph_id
+        rows.append([concept_id1, concept_id2, ontology[concept_id1], ontology[concept_id2], text_id, text_chunk, raw_text, score])
+
+    df = pd.DataFrame(rows, columns=columns)
+    df.to_csv('output/uaz_document_concept_pairings.csv', index=False)
+    exit(1)
+    
+    
+    
     # print the results of the matches
     for paragraph_id, concept_id1, concept_id2, score in ranked_links[:100]:
         print('-------------------------')
