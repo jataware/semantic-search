@@ -4,7 +4,6 @@ from data.dart_papers import DartPapers
 from data.wm_ontology import FlatOntology
 from data.corpora import Corpus, CorpusLoader
 from search.bert_search import BertSentenceSearch
-from scipy.sparse.csgraph import floyd_warshall
 import json
 from tqdm import tqdm
 import torch
@@ -72,7 +71,6 @@ class DartTop100(CorpusLoader):
 
 
 
-# from scalene import scalene_profiler
 def main():
     corpus = DartPapers.get_paragraph_corpus()
     ontology = FlatOntology.get_corpus()
@@ -116,35 +114,6 @@ def main():
         for match_id, score in matches:
             raw_text = corpus[match_id]   # get the matching text for the given id
             print(raw_text, end='\n\n\n') # print the text
-
-    # pdb.set_trace()
-    # concept_map = get_uaz_concepts_to_docs(filter_empty=True)
-
-    # found_concepts = []
-    # for concept in concept_map:
-    #     concept = concept.replace(' ', '_')
-    #     if concept in ontology:
-    #         found_concepts.append(concept)
-
-    # #collect the top 100 most frequent papers
-    # paper_counts = {}
-    # for concept in found_concepts:
-    #     if concept not in concept_map:
-    #         continue
-    #     for paper in concept_map[concept]:
-    #         if paper not in paper_counts:
-    #             paper_counts[paper] = 0
-    #         paper_counts[paper] += 1
-
-    # top_papers = sorted(paper_counts.items(), key=lambda x: x[1], reverse=True)[:100]
-
-    # corpus = DartTop100.get_corpus()
-    pdb.set_trace()
-
-
-    #do a search for each concept over the corpus
-    # for concept in found_concepts:
-    #     results = engine.search(ontology[concept],n=3)
 
 
 def main2():
@@ -219,6 +188,121 @@ def main2():
     pdb.set_trace()
 
 
+def main3():
+    uaz_pairings = get_uaz_concept_pairs()
+    our_pairings = get_our_concept_pairs()
+    corpus = DartPapers.get_paragraph_corpus()
+
+    #construct sets of valid ontology terms, and valid papers
+    valid_concepts = set(k for k,_ in valid_ontology())
+    valid_papers = set(k for k,_ in corpus.keys())
+    
+
+    # create a uaz_map from concept pairs to papers, filtering for valid concepts and papers
+    uaz_map = {}
+    for concept1, concept2, paper_ids in uaz_pairings:
+        if concept1 not in valid_concepts or concept2 not in valid_concepts:
+            continue
+        if concept1 < concept2:
+            concept2, concept1 = concept1, concept2 
+        for paper_id in paper_ids:
+            if paper_id not in valid_papers:
+                continue
+            if (concept1, concept2) not in uaz_map:
+                uaz_map[(concept1, concept2)] = set()
+            uaz_map[(concept1, concept2)].add(paper_id)
+           
+            
+    our_map = {}
+    for concept1, concept2, paper_ids in our_pairings:
+        if concept1 not in valid_concepts or concept2 not in valid_concepts:
+            continue
+        if concept1 < concept2:
+            concept2, concept1 = concept1, concept2
+        for paper_id in paper_ids:
+            if paper_id not in valid_papers:
+                continue
+            if (concept1, concept2) not in our_map:
+                our_map[(concept1, concept2)] = set()
+            our_map[(concept1, concept2)].add(paper_id)
+
+    
+    columns = ['concept1', 'concept2', 'uaz_count', 'our_count', 'num_matches']
+    rows = []
+
+    all_pairs = set([*uaz_map.keys()]).union(set([*our_map.keys()]))
+
+    for concept1, concept2 in all_pairs:
+        uaz_paper_ids = uaz_map.get((concept1, concept2), set())
+        our_paper_ids = our_map.get((concept1, concept2), set())
+        uaz_count = len(uaz_paper_ids)
+        our_count = len(our_paper_ids)
+        num_matches = len(uaz_paper_ids.intersection(our_paper_ids))
+        rows.append([concept1, concept2, uaz_count, our_count, num_matches])
+
+    df = pd.DataFrame(rows, columns=columns)
+    df.to_csv('output/uaz_document_concept_pairings_vs_jataware.csv', index=False)
+
+    exit(1)
+
+
+
+
+
+    # for concept1, concept2, paper_ids in our_pairings:
+    #     if concept1 not in valid_concepts or concept2 not in valid_concepts:
+    #         continue
+    #     our_paper_ids = set()
+    #     for paper_id in paper_ids:
+    #         if paper_id not in valid_papers:
+    #             continue
+
+    #         our_paper_ids.add(paper_id)
+
+    #     uaz_paper_ids = uaz_map.get((concept1, concept2), set())
+    #     uaz_count = len(uaz_paper_ids)
+    #     our_count = len(our_paper_ids)
+    #     num_matches = len(uaz_paper_ids.intersection(our_paper_ids))
+
+
+    
+    
+    # concept_map = get_uaz_concepts_to_docs(filter_empty=True)
+
+    # found_concepts = []
+    # for concept in concept_map:
+    #     concept = concept.replace(' ', '_')
+    #     if concept in ontology:
+    #         found_concepts.append(concept)
+
+    # pdb.set_trace()
+    pass
+
+    # #collect the top 100 most frequent papers
+    # paper_counts = {}
+    # for concept in found_concepts:
+    #     if concept not in concept_map:
+    #         continue
+    #     for paper in concept_map[concept]:
+    #         if paper not in paper_counts:
+    #             paper_counts[paper] = 0
+    #         paper_counts[paper] += 1
+
+    # top_papers = sorted(paper_counts.items(), key=lambda x: x[1], reverse=True)[:100]
+
+    # corpus = DartTop100.get_corpus()
+
+
+    #do a search for each concept over the corpus
+    # for concept in found_concepts:
+    #     results = engine.search(ontology[concept],n=3)
+
+
+
+
+
+
+
 def get_concepts(actor: dict) -> list[str]:
     results = [i['name'] for i in actor['concept']['db_refs']['WM_FLAT']]
     return results
@@ -255,7 +339,62 @@ def get_uaz_concepts_to_docs(*, filter_empty=False):
         concepts = {k: v for k, v in concepts.items() if len(v) >= 1}
     
     return concepts
+
+
+def get_uaz_concept_pairs():
+    with open('data/statements_2022_march_v4.jsonl') as f:
+        lines = f.readlines()
     
+    # concepts = {} # concept -> set<doc-id>
+    # docs = set() # list of all docs encountered
+
+    pairings = [] # subj:str, obj:str, doc_ids: set<str>
+
+    for line in lines:
+        data = json.loads(line)
+        subjs = get_concepts(data['subj'])
+        objs = get_concepts(data['obj'])
+        doc_ids = set(get_docs(data['evidence']))
+        if len(doc_ids) == 0:
+            continue
+        for subj in subjs:
+            for obj in objs:
+                pairings.append((subj, obj, doc_ids))
+
+
+    return pairings
+
+
+
+def get_our_concept_pairs():
+    #read them in as a dataframe from the results of 'output/uaz_document_concept_pairings.csv'
+    df = pd.read_csv('output/uaz_document_concept_pairings.csv')
+
+    #keep only the relevant columns from ['node1', 'node2', 'query1', 'query2', 'paper_id', 'chunk', 'text', 'score']
+    df = df[['node1', 'node2', 'paper_id']]
+
+    pairings = [] # subj:str, obj:str, doc_id: str
+
+    for _, row in df.iterrows():
+        pairings.append((row['node1'], row['node2'], row['paper_id']))
+
+    #squash the pairings by doc_id, so we have pairings: subj:str, obj:str, doc_ids: set<str>
+    pair_map = {}
+    for subj, obj, doc_id in pairings:
+        key = (subj, obj)
+        if key not in pair_map:
+            pair_map[key] = set()
+        pair_map[key].add(doc_id)
+
+    pairings = [(k[0], k[1], v) for k, v in pair_map.items()]
+
+    return pairings
+        
+
+
+
+
+
     
     # # docs = {}
     # with open('data/dart_cdr.json_mar_2022') as f:
@@ -285,4 +424,5 @@ def get_uaz_concepts_to_docs(*, filter_empty=False):
 
 if __name__ == '__main__':
     # main()
-    main2()
+    # main2()
+    main3()
