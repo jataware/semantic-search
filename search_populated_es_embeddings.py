@@ -1,4 +1,4 @@
-from search.corpora import Indicators
+from data.indicators import Indicators
 from search.bert_search import BertSentenceSearch
 from elasticsearch import Elasticsearch
 import json
