@@ -68,10 +68,26 @@ def blacklist_doc(N=500):
 #         return Corpus.chunk(docs, DartPapers.chunk_paragraphs)
 
 
+def get_paragraph_terms(corpus=None, engine=None, n=10):
+    """return a map from paragraph id to the set of terms that matched that paragraph"""
+    if corpus is None:
+        corpus = DartPapers.get_paragraph_corpus()
+    if engine is None:
+        engine = BertSentenceSearch(corpus, save_name=DartPapers.__name__, batch_size=256, blacklist=blacklist_doc())
+
+    matches = {}
+    for key, query in tqdm([*valid_ontology()], desc='matching concept pairs'):
+        for match_id, score in engine.search(query, n=n):
+            if match_id not in matches:
+                matches[match_id] = set()
+            matches[match_id].add((key, score))
+
+    return matches
+
 def user_search_dart():
     corpus = DartPapers.get_paragraph_corpus()
     engine = BertSentenceSearch(corpus, save_name=DartPapers.__name__, batch_size=256, blacklist=blacklist_doc())
-
+    paragraph_terms = get_paragraph_terms(corpus, engine, n=100)
 
     while True:
         print("-----------------------------------------------------")
@@ -82,7 +98,13 @@ def user_search_dart():
         print('Top 10 matches:')
         for match_id, score in matches:
             raw_text = corpus[match_id]   # get the matching text for the given id
-            print(f'{score}\n{raw_text}\n\n') # print the text
+            matching_terms = paragraph_terms.get(match_id, set())
+            # print the text
+            print(score) 
+            print(raw_text)
+            for term, score in matching_terms:
+                print(f'- {term} ({score})')
+            print('')
 
 
 
