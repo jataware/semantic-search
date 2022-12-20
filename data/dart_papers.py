@@ -6,6 +6,11 @@ class DartPapers(CorpusLoader):
     @staticmethod
     def get_corpus() -> Corpus[str]:  
         
+        # check if the class already made a singleton copy of the data
+        if hasattr(DartPapers, 'corpus'):
+            return DartPapers.corpus
+
+
         with open('data/dart_cdr.json_mar_2022') as f:
             lines = f.readlines()
 
@@ -21,7 +26,10 @@ class DartPapers(CorpusLoader):
             
             docs[id] = text
 
-        return Corpus(docs)
+        # save singleton copy of the data
+        DartPapers.corpus = Corpus(docs)
+
+        return DartPapers.corpus
 
     @staticmethod
     def get_paragraph_corpus() -> Corpus[tuple[str,int]]:

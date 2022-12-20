@@ -152,6 +152,7 @@ class BertSentenceSearch(Search, Generic[T]):
             try:
                 self.embeddings = torch.load(self.save_path, map_location=self.device)
                 print('Loaded bert sentence encoded corpus from disk')
+                assert self.embeddings.shape[0] == len(self.corpus), f'size mismatch between corpus and embeddings loaded from {self.save_path}'
                 return
             except FileNotFoundError:
                 pass
@@ -191,3 +192,8 @@ class BertSentenceSearch(Search, Generic[T]):
             results = [(self.keys[i], score) for i, score in zip(ranks, scores[ranks].cpu().numpy())]
                         
             return results
+
+    def __iter__(self):
+        """iterate over (key, embedding) pairs"""
+        for key, embedding in zip(self.keys, self.embeddings):
+            yield key, embedding

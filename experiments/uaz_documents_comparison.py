@@ -345,6 +345,7 @@ def get_uaz_concept_pairs():
 
     for line in lines:
         data = json.loads(line)
+        #note that at data['evidence'][i]['text'] and data['evidence'][i]['annotations'] we get the matched text from the source
         subjs = get_concepts(data['subj'])
         objs = get_concepts(data['obj'])
         doc_ids = set(get_docs(data['evidence']))
@@ -416,8 +417,9 @@ def get_our_concept_pairs():
     # print(concepts)
 
 if __name__ == '__main__':
-    user_search_dart()
+    get_uaz_concept_pairs()
+    # user_search_dart()
     # main()
-    main2()
+    # main2()
     # main3()
     # main4()
