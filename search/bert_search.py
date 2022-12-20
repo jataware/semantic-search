@@ -172,8 +172,13 @@ class BertSentenceSearch(Search, Generic[T]):
         with torch.no_grad():
             # embed the query, and compare to all embeddings for documents in the corpus
             encoded_query = self.embed_query(query)
-            scores = torch.cosine_similarity(encoded_query[None,:], self.embeddings, dim=1)
-            
+            # scores = torch.cosine_similarity(encoded_query[None,:], self.embeddings, dim=1)
+            #batched version
+            scores_list: list[torch.Tensor] = []
+            for embedding_chunk in self.embeddings.split(self.batch_size):
+                scores_list.append(torch.cosine_similarity(encoded_query[None,:], embedding_chunk, dim=1))
+            scores = torch.cat(scores_list, dim=0)
+
             # get the ranked indices of all the documents (filtering out blacklisted ones)
             ranks = torch.argsort(scores, descending=True)
             ranks = ranks[~torch.isin(ranks, self.blacklist)]
