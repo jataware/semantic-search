@@ -20,7 +20,7 @@ import pdb
 
 
 leaf_nodes = FlatOntology.get_leaf_nodes()
-blacklisted_nodes = set(['description', 'private', 'public', 'informing', 'observer', 'international', 'ask'])
+blacklisted_nodes = set(FlatOntology.get_blacklisted_nodes())
 ontology = FlatOntology.get_corpus()
 
 def valid_ontology():
@@ -38,40 +38,57 @@ def blacklist_doc(N=500):
 
 
 
-class DartTop100(CorpusLoader):
-    @staticmethod
-    def get_corpus() -> Corpus[str]:
-        docs_corpus = DartPapers.get_corpus()
-        ontology = FlatOntology.get_corpus()
-        concept_map = get_uaz_concepts_to_docs(filter_empty=True)
+# class DartTop100(CorpusLoader):
+#     @staticmethod
+#     def get_corpus() -> Corpus[str]:
+#         docs_corpus = DartPapers.get_corpus()
+#         ontology = FlatOntology.get_corpus()
+#         concept_map = get_uaz_concepts_to_docs(filter_empty=True)
 
-        found_concepts = []
-        for concept in concept_map:
-            concept = concept.replace(' ', '_')
-            if concept in ontology:
-                found_concepts.append(concept)
+#         found_concepts = []
+#         for concept in concept_map:
+#             concept = concept.replace(' ', '_')
+#             if concept in ontology:
+#                 found_concepts.append(concept)
 
-        #collect the top 100 most frequent papers
-        paper_counts = {}
-        for concept in found_concepts:
-            if concept not in concept_map:
-                continue
-            for paper in concept_map[concept]:
-                if paper not in paper_counts:
-                    paper_counts[paper] = 0
-                paper_counts[paper] += 1
+#         #collect the top 100 most frequent papers
+#         paper_counts = {}
+#         for concept in found_concepts:
+#             if concept not in concept_map:
+#                 continue
+#             for paper in concept_map[concept]:
+#                 if paper not in paper_counts:
+#                     paper_counts[paper] = 0
+#                 paper_counts[paper] += 1
 
-        top_papers = sorted(paper_counts.items(), key=lambda x: x[1], reverse=True)[:100]
+#         top_papers = sorted(paper_counts.items(), key=lambda x: x[1], reverse=True)[:100]
 
-        docs = {doc_id: docs_corpus[doc_id] for doc_id, score in top_papers}
+#         docs = {doc_id: docs_corpus[doc_id] for doc_id, score in top_papers}
  
-        return Corpus.chunk(docs, DartPapers.chunk_paragraphs)
+#         return Corpus.chunk(docs, DartPapers.chunk_paragraphs)
 
 
+def user_search_dart():
+    corpus = DartPapers.get_paragraph_corpus()
+    engine = BertSentenceSearch(corpus, save_name=DartPapers.__name__, batch_size=256, blacklist=blacklist_doc())
+
+
+    while True:
+        print("-----------------------------------------------------")
+        query = input('>>> ')
+
+        matches = engine.search(query, n=10)
+        # print the results of the search
+        print('Top 10 matches:')
+        for match_id, score in matches:
+            raw_text = corpus[match_id]   # get the matching text for the given id
+            print(f'{score}\n{raw_text}\n\n') # print the text
 
 
 
 def main():
+    """For each term in the ontology, find matching paragraphs from the DART papers"""
+
     corpus = DartPapers.get_paragraph_corpus()
     ontology = FlatOntology.get_corpus()
 
@@ -97,55 +114,47 @@ def main():
     
     df = pd.DataFrame(rows, columns=columns)
     df.to_csv('output/uaz_document_concept_matches.csv', index=False)
-    exit(1)
     
-    
-    
-    # for key, query in ontology.items():
-    for key, query in valid_ontology():
-
-        # query = input('Enter query: ')
-        print("-----------------------------------------------------")
-        input(f'press ENTER to search query for ({key}) "{query}"')
-
-        matches = engine.search(query, n=10)
-        # print the results of the search
-        print('Top 10 matches:')
-        for match_id, score in matches:
-            raw_text = corpus[match_id]   # get the matching text for the given id
-            print(raw_text, end='\n\n\n') # print the text
 
 
 def main2():
+    """Find paragraphs in the DART papers that have 2+ matching concepts. First stab at finding causal relationships"""
+
     corpus = DartPapers.get_paragraph_corpus()
     engine = BertSentenceSearch(corpus, save_name=DartPapers.__name__, batch_size=256, blacklist=blacklist_doc())
     ontology = FlatOntology.get_corpus()
 
     # create a list of linked concepts
-    links = {} # map<paragraph_id, list<concept_id>>
+    links = {} # map<paragraph_id, list<(concept_id, score)>>
     embeddings = {}
 
+    #save the embeddings for each concept
     for key, query in tqdm([*valid_ontology()], desc='matching concept pairs'):
         embeddings[key] = engine.embed_query(query).cpu()
         matches = engine.search(query, n=10)
         for match_id, score in matches:
             if match_id not in links:
                 links[match_id] = []
-            links[match_id].append(key)
+            links[match_id].append((key, score))
 
     #rank all of the concept pairs
-    ranked_links = [] #list<tuple<paragraph_id, concept_id, concept_id, score>> where score is the distance between the two concepts
-    for paragraph_id, concept_ids in tqdm([*links.items()], desc='ranking concept pairs'):
-        if len(concept_ids) > 1:
-            for concept_id1 in concept_ids:
-                for concept_id2 in concept_ids:
+    ranked_links = [] #list<tuple<paragraph_id, concept_id, concept_id, score>> where score is the distance between the two concepts + 
+    for paragraph_id, concepts in tqdm([*links.items()], desc='ranking concept pairs'):
+        if len(concepts) > 1:
+            done = set()
+            for concept_id1, score1 in concepts:
+                for concept_id2, score2 in concepts:
                     if concept_id1 == concept_id2:
                         continue
-                    
+                    if (concept_id1, concept_id2) in done or (concept_id2, concept_id1) in done:
+                        continue
+                    done.add((concept_id1, concept_id2))
                     embedding1 = embeddings[concept_id1]
                     embedding2 = embeddings[concept_id2]
                     dist = torch.cosine_similarity(embedding1, embedding2, dim=0)
-                    ranked_links.append((paragraph_id, concept_id1, concept_id2, dist))
+                    score = score1 * score2 / dist
+                    # score_v2 = score1 + score2 - dist
+                    ranked_links.append((paragraph_id, concept_id1, concept_id2, score))
 
     ranked_links = sorted(ranked_links, key=lambda x: x[3])
 
@@ -155,7 +164,7 @@ def main2():
     for paragraph_id, concept_id1, concept_id2, score in ranked_links:
         raw_text = corpus[paragraph_id]
         text_id, text_chunk = paragraph_id
-        rows.append([concept_id1, concept_id2, ontology[concept_id1], ontology[concept_id2], text_id, text_chunk, raw_text, score])
+        rows.append([concept_id1, concept_id2, ontology[concept_id1], ontology[concept_id2], text_id, text_chunk, raw_text, float(score)])
 
     df = pd.DataFrame(rows, columns=columns)
     df.to_csv('output/uaz_document_concept_pairings.csv', index=False)
@@ -247,59 +256,13 @@ def main3():
 
 
 
+def main4():
 
+    uaz_concepts = get_uaz_concepts_to_docs()
+    our_concepts = get_our_concepts_to_docs()
+    pdb.set_trace()
 
-    # for concept1, concept2, paper_ids in our_pairings:
-    #     if concept1 not in valid_concepts or concept2 not in valid_concepts:
-    #         continue
-    #     our_paper_ids = set()
-    #     for paper_id in paper_ids:
-    #         if paper_id not in valid_papers:
-    #             continue
-
-    #         our_paper_ids.add(paper_id)
-
-    #     uaz_paper_ids = uaz_map.get((concept1, concept2), set())
-    #     uaz_count = len(uaz_paper_ids)
-    #     our_count = len(our_paper_ids)
-    #     num_matches = len(uaz_paper_ids.intersection(our_paper_ids))
-
-
-    
-    
-    # concept_map = get_uaz_concepts_to_docs(filter_empty=True)
-
-    # found_concepts = []
-    # for concept in concept_map:
-    #     concept = concept.replace(' ', '_')
-    #     if concept in ontology:
-    #         found_concepts.append(concept)
-
-    # pdb.set_trace()
     pass
-
-    # #collect the top 100 most frequent papers
-    # paper_counts = {}
-    # for concept in found_concepts:
-    #     if concept not in concept_map:
-    #         continue
-    #     for paper in concept_map[concept]:
-    #         if paper not in paper_counts:
-    #             paper_counts[paper] = 0
-    #         paper_counts[paper] += 1
-
-    # top_papers = sorted(paper_counts.items(), key=lambda x: x[1], reverse=True)[:100]
-
-    # corpus = DartTop100.get_corpus()
-
-
-    #do a search for each concept over the corpus
-    # for concept in found_concepts:
-    #     results = engine.search(ontology[concept],n=3)
-
-
-
-
 
 
 
@@ -340,6 +303,14 @@ def get_uaz_concepts_to_docs(*, filter_empty=False):
     
     return concepts
 
+
+def get_our_concepts_to_docs():
+    #read them in as a dataframe
+    df = pd.read_csv('output/uaz_documents_concept_matches.csv')
+    # columns are node,query,text_id,text_chunk,text,score
+    #keep "node", "text_id"
+  
+    pdb.set_trace()
 
 def get_uaz_concept_pairs():
     with open('data/statements_2022_march_v4.jsonl') as f:
@@ -423,6 +394,8 @@ def get_our_concept_pairs():
     # print(concepts)
 
 if __name__ == '__main__':
+    user_search_dart()
     # main()
-    # main2()
-    main3()
+    main2()
+    # main3()
+    # main4()

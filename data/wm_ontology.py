@@ -75,6 +75,11 @@ class FlatOntology(CorpusLoader):
         graph = FlatOntology.get_graph()
         return [node for node, children in graph.items() if len(children) == 0]
 
+    @staticmethod
+    def get_blacklisted_nodes() -> list[str]:
+        with open('data/wm_ontology_blacklist.txt', 'r') as f:
+            return [line.strip() for line in f.readlines()]
+
 
 
 
