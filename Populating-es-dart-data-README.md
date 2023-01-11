@@ -7,8 +7,16 @@ Download the data from Google Drive:
 
 https://drive.google.com/drive/folders/1bUNoOTfefmYRuEWuaZhfOqQIyyMV72QE?usp=sharing
 
-Follow the instructions on where to put each file, using this slack message:
-https://jataware.slack.com/archives/CAZTFECQY/p1671563821874239
+Three files and where to store them on this project:
+
+- `dart_cdr.json_mar_2022` is the corpus of the papers in plain text (nested inside json structures**.
+*Put this in the data/ folder*
+
+- `DartPapers_sentence_embeddings.pt` is the embeddings of each of the paragraphs of each of the papers.
+*Put this under weights/*
+
+- `statements_2022_march_v4` is all of the concept matches/indra statements we were talking about.
+*Store this in data/*
 
 ### Additional Dependencies
 
