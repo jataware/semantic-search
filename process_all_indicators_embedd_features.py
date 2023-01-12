@@ -44,8 +44,6 @@ def saveAllOutputEmbeddings(indicatorDictionary, indicator_id):
         return es.index(index="features", body=feature, id=feature_id)
 
 
-
-
 es_body = {
     "query": {
         "match_all": {}
