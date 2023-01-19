@@ -349,8 +349,14 @@ def get_uaz_concept_pairs():
         subjs = get_concepts(data['subj'])
         objs = get_concepts(data['obj'])
         doc_ids = set(get_docs(data['evidence']))
-        if len(doc_ids) == 0:
+        if len(doc_ids) == 0: #ensure that eidos matched something
             continue
+        #DEBUG get eidos evidence
+        # print(subjs, objs)
+        # evidence_text = [data['evidence'][i]['text'] for i in range(len(data['evidence'])) if data['evidence'][i]['source_api'] == 'eidos']
+        # for e in evidence_text:
+        #     print(e)
+        # pdb.set_trace()
         for subj in subjs:
             for obj in objs:
                 pairings.append((subj, obj, doc_ids))
@@ -417,9 +423,9 @@ def get_our_concept_pairs():
     # print(concepts)
 
 if __name__ == '__main__':
-    get_uaz_concept_pairs()
+    # get_uaz_concept_pairs()
     # user_search_dart()
     # main()
-    # main2()
+    main2()
     # main3()
     # main4()
