@@ -17,3 +17,8 @@ weights/*
 profile.html
 profile.json
 profile_test.py
+
+
+# document upload experiment temporary files
+tmp.pdf
+tmp.txt
