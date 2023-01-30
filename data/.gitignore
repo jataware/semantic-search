@@ -5,3 +5,7 @@ statements_2022_march_v4.jsonl
 
 # transition documents
 transition_reports/
+
+
+# just a big collection of pdfs
+pdf_corpus/
