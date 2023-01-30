@@ -48,7 +48,7 @@ def get_metadata(path):
 
 
 
-def convert_pdf(path: str, skip_ocr=False) -> list[tuple[str, int]]:
+def extract_text(path: str) -> list[tuple[str, int]]:
     work_path = 'tmp.pdf'
     ocrmypdf.ocr(path, work_path, language='eng', progress_bar=False, redo_ocr=True, sidecar='tmp.txt')
     reader = PdfReader(work_path)
@@ -147,10 +147,6 @@ def is_blacklisted_author(author: str) -> bool:
 
 
 
-
-
-
-
 def get_pdfs(root: str) -> Generator[str, None, None]:
     """
     get all pdf files in the root directory and its subdirectories
@@ -178,12 +174,7 @@ def get_authors(root) -> set[str]:
 
 
 if __name__ == '__main__':
-    # authors = get_authors('data/transition_reports')
-    # pdb.set_trace()
     
-    
-    
-    results = {}
     # get all pdf files in the root directory and its subdirectories
     for path in get_pdfs('data/transition_reports'):
         metadata = get_metadata(path)
@@ -196,10 +187,7 @@ if __name__ == '__main__':
         print(f'creation date: {creation_date}')
         print(f'subject: {subject}')
         print('---------------------------------------------------------')
-        paragraphs = convert_pdf(path)
+        paragraphs = extract_text(path)
         text = '\n'.join([f'(page {p[1]}) ' + p[0] for p in paragraphs])
         print(text)
         print('\n\n')
-
-    
-    # ocr_pdf('data/test_pdfs/20230123111924_001.pdf')
