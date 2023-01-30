@@ -7,10 +7,10 @@ sudo apt install tesseract-ocr
 pip install ocrmypdf
 pip install pypdf
 pip install numpy
+pip install torch
+pip install transformers
+pip install sentence-transformers
 """
-#TBD dependencies:
-# pip install sentence-transformers
-# pip install transformers
 
 
 
@@ -20,7 +20,9 @@ from pypdf import PdfReader
 import ocrmypdf
 from typing import Generator
 import numpy as np
-
+import torch
+from sentence_transformers import SentenceTransformer
+from transformers import logging
 
 import pdb
 
@@ -118,10 +120,37 @@ def extract_text(path: str) -> list[tuple[str, int]]:
 
 
 
-def embed_text(text: str) -> np.ndarray:
+class Embedder:
     """
-    TODO: embed text with sentence embedder
+    Convert a list of strings to embeddings
+
+    Example:
+    ```
+    model = Embedder(cuda=True)
+    sentences = ['this is a sentence', 'this is another sentence', 'this is a third sentence']
+    embeddings = model.embed(sentences)
+    ```
+
     """
+    def __init__(self, *, model='all-mpnet-base-v2', cuda=True, batch_size=32):
+
+        self.batch_size = batch_size
+        
+        #create an instance of the model, and optionally move it to GPU
+        with torch.no_grad():
+            logging.set_verbosity_error()
+            self.model = SentenceTransformer(model)
+            if cuda:
+                self.model = self.model.cuda()
+
+    def embed(self, sentences: list[str]) -> list[np.ndarray]:
+        """
+        embed a list of sentences
+        """
+        with torch.no_grad():
+            embeddings = self.model.encode(sentences, batch_size=self.batch_size, show_progress_bar=False)
+        embeddings = [e for e in embeddings] #convert to list
+        return embeddings
 
 
 
@@ -175,6 +204,8 @@ def get_authors(root) -> set[str]:
 
 if __name__ == '__main__':
     
+    model = Embedder(cuda=True)
+
     # get all pdf files in the root directory and its subdirectories
     for path in get_pdfs('data/transition_reports'):
         metadata = get_metadata(path)
@@ -191,3 +222,7 @@ if __name__ == '__main__':
         text = '\n'.join([f'(page {p[1]}) ' + p[0] for p in paragraphs])
         print(text)
         print('\n\n')
+
+        # embeddings = model.embed([p for p, _ in paragraphs])
+        # pdb.set_trace()
+        # break
