@@ -38,8 +38,47 @@ class Highlighter:
         """check if a word is a stopword, or only contains punctuation. Such words should not be highlighted."""
         return word not in Highlighter.ignore_words and len(re.sub('[^a-zA-Z]', '', word)) > 0
 
+    @staticmethod
+    def spans_to_highlight_list(text: str, spans: list[tuple[int,int]]) -> list[Highlight]:
+        """Convert a list of character spans into a list of Highlight objects"""
+        highlight_list: list[Highlight] = []
+        last_end = 0
+        for start, end in spans:
+            if start > last_end:
+                highlight_list.append({
+                    "text": text[last_end:start],
+                    "highlight": False
+                })
+            highlight_list.append({
+                "text": text[start:end], 
+                "highlight": True
+            })
+            last_end = end
         
-    def embed(self, s: str) -> tuple[BatchEncoding ,torch.Tensor]:
+        if last_end < len(text):
+            highlight_list.append({
+                "text": text[last_end:], 
+                "highlight": False
+            })
+
+        return highlight_list
+    
+    @staticmethod
+    def merge_char_spans(spans: list[tuple[int,int]]) -> list[tuple[int,int]]:
+        """Merge adjacent and overlapping character spans into a single span"""
+        merged_spans = []
+        for span in spans:
+            if len(merged_spans) == 0:
+                merged_spans.append(span)
+            else:
+                if span[0] <= merged_spans[-1][1] + 1:
+                    merged_spans[-1] = (merged_spans[-1][0], span[1])
+                else:
+                    merged_spans.append(span)
+        return merged_spans
+    
+
+    def embed(self, s: str) -> tuple[BatchEncoding, torch.Tensor]:
         with torch.no_grad():
             tokens = self.tokenizer(s, return_tensors='pt', padding=True, truncation=True)
             tokens.to(device=self.device)
@@ -47,7 +86,7 @@ class Highlighter:
             
             return tokens, embedding
         
-    def highlight(self, query: str, target: str, threshold=0.5, embedding_q=torch.Tensor|None) -> list[Highlight]:
+    def highlight(self, query: str, target: str, *, threshold=0.5, include_exact=True, embedding_q=torch.Tensor|None) -> list[Highlight]:
         """Highlight a single target string given a query"""
 
         # embed the query if it is not already embedded
@@ -99,32 +138,14 @@ class Highlighter:
             highlight_char_spans.append((start_char, end_char))
 
         # 4. convert the spans and original text to a list of Highlight objects
-        highlight_list: list[Highlight] = []
-        last_end = 0
-        for start, end in highlight_char_spans:
-            if start > last_end:
-                highlight_list.append({
-                    "text": target[last_end:start],
-                    "highlight": False
-                })
-            highlight_list.append({
-                "text": target[start:end], 
-                "highlight": True
-            })
-            last_end = end
-        
-        if last_end < len(target):
-            highlight_list.append({
-                "text": target[last_end:], 
-                "highlight": False
-            })
+        highlight_list = Highlighter.spans_to_highlight_list(target, highlight_char_spans)
 
         return highlight_list
         
-    def highlight_multiple(self, query: str, targets: list[str], threshold=0.5) -> list[list[Highlight]]:
+    def highlight_multiple(self, query: str, targets: list[str], *, threshold=0.5, include_exact=True) -> list[list[Highlight]]:
         """highlight multiple target strings given a query"""    
         _, embedding_q = self.embed(query)
-        highlight_lists = [self.highlight(query, target, threshold, embedding_q) for target in targets]
+        highlight_lists = [self.highlight(query, target, threshold=threshold, include_exact=include_exact, embedding_q=embedding_q) for target in targets]
         return highlight_lists
             
 
@@ -203,15 +224,14 @@ def main():
     engine = BertSentenceSearch(corpus, save_name=DartPapers.__name__, blacklist=blacklist_fn)
     highlighter = Highlighter()
 
-    for query in REPL():
-        matches = engine.search(query, n=5)
+    print("Search DART Paper Corpus:")
+    for query in REPL(history_file='search_highlight_history.txt'):
+        matches = engine.search(query, n=3)
         raw_texts = [corpus[match_id] for match_id, score in matches]
-        highlight_lists = highlighter.highlight_multiple(query, raw_texts)
+        highlight_lists = highlighter.highlight_multiple(query, raw_texts, include_exact=True)
         for highlight_list in highlight_lists:
             terminal_highlight_print(highlight_list)
             print()
-                
-        
         
 
 if __name__ == '__main__':
