@@ -2,6 +2,7 @@ from __future__ import annotations
 from transformers import BertTokenizerFast, BertModel, BatchEncoding, logging # type: ignore[import]
 import torch
 from typing import TypedDict
+import re
 
 
 class Highlight(TypedDict):
@@ -192,7 +193,6 @@ def main():
     from data.dart_papers import DartPapers
     from easyrepl import REPL
     from search.bert_search import BertSentenceSearch
-    import re
 
     #blacklist function, reject results with less than some number of alphabetical characters
     pattern = re.compile('[^a-zA-Z]')
