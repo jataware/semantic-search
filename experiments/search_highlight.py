@@ -98,33 +98,33 @@ class Highlighter:
             highlight_char_spans.append((start_char, end_char))
 
         # 4. convert the spans and original text to a list of Highlight objects
-        highlight: list[Highlight] = []
+        highlight_list: list[Highlight] = []
         last_end = 0
         for start, end in highlight_char_spans:
             if start > last_end:
-                highlight.append({
+                highlight_list.append({
                     "text": target[last_end:start],
                     "highlight": False
                 })
-            highlight.append({
+            highlight_list.append({
                 "text": target[start:end], 
                 "highlight": True
             })
             last_end = end
         
         if last_end < len(target):
-            highlight.append({
+            highlight_list.append({
                 "text": target[last_end:], 
                 "highlight": False
             })
 
-        return highlight
+        return highlight_list
         
-    def highlights(self, query: str, targets: list[str], threshold=0.5) -> list[list[Highlight]]:
+    def highlight_multiple(self, query: str, targets: list[str], threshold=0.5) -> list[list[Highlight]]:
         """highlight multiple target strings given a query"""    
         _, embedding_q = self.embed(query)
-        highlights = [self.highlight(query, target, threshold, embedding_q) for target in targets]
-        return highlights
+        highlight_lists = [self.highlight(query, target, threshold, embedding_q) for target in targets]
+        return highlight_lists
             
 
 
@@ -166,21 +166,21 @@ ansi_background_codes = {
     'bright_white': 107,
 }
 
-def terminal_highlight_print(highlight:list[Highlight], background='bright_white', color='black'):
+def terminal_highlight_print(highlight_list:list[Highlight], background='bright_white', color='black'):
     """print the text to the terminal, highlighting at the given spans"""
 
+    # convert the color/background strings to ANSI codes
     color = ansi_color_codes[color]
     background = ansi_background_codes[background]
 
     # print the chunks
-    for span in highlight:
+    for span in highlight_list:
         chunk = span['text']
         highlight = span['highlight']
         if highlight:
             print(f'\033[{color};{background}m{chunk}\033[0m', end='')
         else:
             print(chunk, end='')
-
     print()
 
 
@@ -206,9 +206,9 @@ def main():
     for query in REPL():
         matches = engine.search(query, n=5)
         raw_texts = [corpus[match_id] for match_id, score in matches]
-        highlights = highlighter.highlights(query, raw_texts)
-        for highlight in highlights:
-            terminal_highlight_print(highlight)
+        highlight_lists = highlighter.highlight_multiple(query, raw_texts)
+        for highlight_list in highlight_lists:
+            terminal_highlight_print(highlight_list)
             print()
                 
         
