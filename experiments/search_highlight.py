@@ -5,6 +5,8 @@ from typing import TypedDict
 import re
 
 
+import pdb
+
 class Highlight(TypedDict):
     text: str
     highlight: bool
@@ -41,6 +43,7 @@ class Highlighter:
     @staticmethod
     def spans_to_highlight_list(text: str, spans: list[tuple[int,int]]) -> list[Highlight]:
         """Convert a list of character spans into a list of Highlight objects"""
+        spans = sorted(spans, key=lambda x: x[0])
         highlight_list: list[Highlight] = []
         last_end = 0
         for start, end in spans:
@@ -66,15 +69,17 @@ class Highlighter:
     @staticmethod
     def merge_char_spans(spans: list[tuple[int,int]]) -> list[tuple[int,int]]:
         """Merge adjacent and overlapping character spans into a single span"""
+        spans = sorted(spans, key=lambda x: x[0])
         merged_spans = []
         for span in spans:
             if len(merged_spans) == 0:
                 merged_spans.append(span)
+                continue
+            
+            if span[0] <= merged_spans[-1][1] + 1:
+                merged_spans[-1] = (merged_spans[-1][0], max(span[1], merged_spans[-1][1]))
             else:
-                if span[0] <= merged_spans[-1][1] + 1:
-                    merged_spans[-1] = (merged_spans[-1][0], span[1])
-                else:
-                    merged_spans.append(span)
+                merged_spans.append(span)
         return merged_spans
     
 
@@ -86,7 +91,27 @@ class Highlighter:
             
             return tokens, embedding
         
-    def highlight(self, query: str, target: str, *, threshold=0.5, include_exact=True, embedding_q=torch.Tensor|None) -> list[Highlight]:
+    
+    def highlight_exact(self, query: str, target: str) -> list[tuple[int,int]]:
+        """returns spans for highlighting exact matching words in the target string"""
+
+        #split the query into words, and filter out empty words and stopwords
+        words = [q.strip() for q in query.lower().split()]
+        words = [word for word in words if len(word) > 0 and Highlighter.good_match(word)]
+
+        spans = []
+        for word in words:
+            for match in re.finditer(word, target.lower()):
+                spans.append(match.span())
+        
+        spans = sorted(spans, key=lambda x: x[0])
+
+        #combine adjacent spans that are separated by a single space
+        spans = Highlighter.merge_char_spans(spans)
+
+        return spans
+    
+    def highlight_llm(self, query: str, target: str, *, threshold=0.5, embedding_q=torch.Tensor|None) -> list[tuple[int,int]]:# -> list[Highlight]:
         """Highlight a single target string given a query"""
 
         # embed the query if it is not already embedded
@@ -137,15 +162,28 @@ class Highlighter:
             end_char = token_t_obj.token_to_chars(end).end
             highlight_char_spans.append((start_char, end_char))
 
-        # 4. convert the spans and original text to a list of Highlight objects
-        highlight_list = Highlighter.spans_to_highlight_list(target, highlight_char_spans)
+        return highlight_char_spans
 
+        # # 4. convert the spans and original text to a list of Highlight objects
+        # highlight_list = Highlighter.spans_to_highlight_list(target, highlight_char_spans)
+
+        # return highlight_list
+    
+    def highlight(self, query: str, target: str, *, threshold=0.5, embedding_q=torch.Tensor|None) -> list[Highlight]:
+        """Highlight a single target string given a query"""
+        llm_spans = self.highlight_llm(query, target, threshold=threshold, embedding_q=embedding_q)
+        exact_spans = self.highlight_exact(query, target)
+        spans = llm_spans + exact_spans
+        # spans = llm_spans #DEBUG
+        # spans = exact_spans #DEBUG
+        spans = Highlighter.merge_char_spans(spans)
+        highlight_list = Highlighter.spans_to_highlight_list(target, spans)
         return highlight_list
         
-    def highlight_multiple(self, query: str, targets: list[str], *, threshold=0.5, include_exact=True) -> list[list[Highlight]]:
+    def highlight_multiple(self, query: str, targets: list[str], *, threshold=0.5) -> list[list[Highlight]]:
         """highlight multiple target strings given a query"""    
         _, embedding_q = self.embed(query)
-        highlight_lists = [self.highlight(query, target, threshold=threshold, include_exact=include_exact, embedding_q=embedding_q) for target in targets]
+        highlight_lists = [self.highlight(query, target, threshold=threshold, embedding_q=embedding_q) for target in targets]
         return highlight_lists
             
 
@@ -225,10 +263,23 @@ def main():
     highlighter = Highlighter()
 
     print("Search DART Paper Corpus:")
-    for query in REPL(history_file='search_highlight_history.txt'):
-        matches = engine.search(query, n=3)
+    n = 3
+    threshold = 0.5
+    for query in REPL(history_file='history.txt'):
+        #if query matches `t=<number>`, set the number of results to return
+        if query.startswith('t='):
+            threshold = float(query[2:])
+            print(f"threshold set to {threshold}")
+            continue
+        #if query matches `n=<number>`, set the number of results to return
+        if query.startswith('n='):
+            n = int(query[2:])
+            print(f"n set to {n}")
+            continue
+        
+        matches = engine.search(query, n=n)
         raw_texts = [corpus[match_id] for match_id, score in matches]
-        highlight_lists = highlighter.highlight_multiple(query, raw_texts, include_exact=True)
+        highlight_lists = highlighter.highlight_multiple(query, raw_texts, threshold=threshold)
         for highlight_list in highlight_lists:
             terminal_highlight_print(highlight_list)
             print()

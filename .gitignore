@@ -22,3 +22,7 @@ profile_test.py
 # document upload experiment temporary files
 tmp.pdf
 tmp.txt
+
+
+# search history file
+history.txt
