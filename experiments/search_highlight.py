@@ -5,7 +5,7 @@ from typing import TypedDict
 import re
 
 
-import pdb
+
 
 class Highlight(TypedDict):
     text: str
@@ -164,18 +164,12 @@ class Highlighter:
 
         return highlight_char_spans
 
-        # # 4. convert the spans and original text to a list of Highlight objects
-        # highlight_list = Highlighter.spans_to_highlight_list(target, highlight_char_spans)
 
-        # return highlight_list
-    
     def highlight(self, query: str, target: str, *, threshold=0.5, embedding_q=torch.Tensor|None) -> list[Highlight]:
         """Highlight a single target string given a query"""
         llm_spans = self.highlight_llm(query, target, threshold=threshold, embedding_q=embedding_q)
         exact_spans = self.highlight_exact(query, target)
         spans = llm_spans + exact_spans
-        # spans = llm_spans #DEBUG
-        # spans = exact_spans #DEBUG
         spans = Highlighter.merge_char_spans(spans)
         highlight_list = Highlighter.spans_to_highlight_list(target, spans)
         return highlight_list
@@ -266,17 +260,18 @@ def main():
     n = 3
     threshold = 0.5
     for query in REPL(history_file='history.txt'):
-        #if query matches `t=<number>`, set the number of results to return
+
+        # handle special commands
         if query.startswith('t='):
             threshold = float(query[2:])
             print(f"threshold set to {threshold}")
             continue
-        #if query matches `n=<number>`, set the number of results to return
         if query.startswith('n='):
             n = int(query[2:])
             print(f"n set to {n}")
             continue
         
+        # search and highlight
         matches = engine.search(query, n=n)
         raw_texts = [corpus[match_id] for match_id, score in matches]
         highlight_lists = highlighter.highlight_multiple(query, raw_texts, threshold=threshold)
