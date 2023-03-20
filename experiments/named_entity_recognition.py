@@ -5,16 +5,6 @@ from transformers import pipeline
 from typing import TypedDict
 
 
-import pdb
-
-# tokenizer = AutoTokenizer.from_pretrained("dslim/bert-large-NER")
-# model = AutoModelForTokenClassification.from_pretrained("dslim/bert-large-NER")
-
-# nlp = pipeline("ner", model=model, tokenizer=tokenizer)
-# example = """Von Neumann made major contributions to many fields, including mathematics (mathematical logic, measure theory, functional analysis, ergodic theory, group theory, lattice theory, representation theory, operator algebras, matrix theory, geometry, and numerical analysis), physics (quantum mechanics, hydrodynamics & ballistics, nuclear physics and quantum statistical mechanics), economics (game theory and general equilibrium theory), computing (Von Neumann architecture, linear programming, numerical meteorology, scientific computing, self-replicating machines, stochastic computing), and statistics. He was a pioneer of the application of operator theory to quantum mechanics in the development of functional analysis, and a key figure in the development of game theory and the concepts of cellular automata, the universal constructor and the digital computer."""
-
-# ner_results = nlp(example)
-# print(ner_results)
 
 class NER:
     def __init__(self, model_name="dslim/bert-large-NER"):
@@ -148,8 +138,7 @@ def main():
             ))
         highlight_list = spans_to_highlight_list(query, spans)
         terminal_highlight_print(highlight_list)
-        # pdb.set_trace()
-        # 1
+
 
 
 if __name__ == "__main__":

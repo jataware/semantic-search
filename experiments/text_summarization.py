@@ -9,7 +9,8 @@ def main():
         device=0 if torch.cuda.is_available() else -1,
     )
     for line in REPL():
-        result = summarizer(line)[0]['summary_text']
+        with torch.no_grad():
+            result = summarizer(line)[0]['summary_text']
         print(f'||| {result}')
 
 if __name__ == "__main__":
